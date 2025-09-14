@@ -96,6 +96,11 @@ const getInitialEmployees = (): Employee[] => [
         email: 'davidadmin@gmail.com', dob: '1990-01-01', phone: '555-0199', country: 'Adminland', state: 'Adminstate', city: 'Admincity', zip: 'A1DMIN', address: '123 Admin Street',
         imageUrl: 'https://randomuser.me/api/portraits/men/99.jpg', role: 'Admin', isBlacklisted: false
       },
+      {
+        id: 1000, name: 'Test User', position: 'Tester', status: 'Available', hotel: null,
+        email: 'test@example.com', dob: '2000-01-01', phone: '555-555-5555', country: 'Testland', state: 'Teststate', city: 'Testcity', zip: 'T3ST', address: '123 Test Street',
+        imageUrl: 'https://randomuser.me/api/portraits/men/1.jpg', role: 'Trabajador', isBlacklisted: false
+      },
 ];
 
 const getInitialCandidates = (): Candidate[] => [

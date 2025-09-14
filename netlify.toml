@@ -1,0 +1,11 @@
+# Este es el archivo de configuración de Netlify.
+
+[build]
+  # Directorio que se va a desplegar (tu aplicación de React)
+  publish = "dist"
+  # Comando para construir tu aplicación
+  command = "npm run build"
+
+[functions]
+  # Directorio donde Netlify encontrará las funciones de backend
+  directory = "netlify/functions"
