@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Container, Paper, TextField, Button, Typography, Box } from '@mui/material';
+import { supabase } from '../supabaseClient'; // Importar supabase
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -11,33 +11,32 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(''); // Limpiar errores previos
+    setError('');
 
     try {
-      const response = await fetch('/.netlify/functions/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Si el backend dice que el login es exitoso,
-        // procedemos a llamar a la función de login local para establecer el usuario.
-        if (!login(email)) {
-            // Esto puede pasar si el usuario de prueba del backend no está en la lista local.
-            // En el futuro, toda la información del usuario vendrá del backend.
-            setError('Usuario autenticado pero no encontrado localmente.');
+      if (error) {
+        setError(error.message);
+      } else if (data.user) {
+        // After Supabase login is successful, we log in to our app context
+        const appLoginSuccess = await login(data.user.email || '');
+        
+        if (!appLoginSuccess) {
+          // This can happen if the user exists in Supabase Auth but not in the employees table
+          setError('Authentication successful, but user profile not found in the application.');
+          // Log out from Supabase to prevent inconsistent states
+          supabase.auth.signOut();
         }
+        // If login is successful, the App component will automatically re-render.
       } else {
-        // Si el backend devuelve un error, lo mostramos.
-        setError(data.message || 'An error occurred.');
+        setError('An unexpected error occurred during login.');
       }
-    } catch (err) {
-      setError('Failed to connect to the server. Please try again later.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect to the server.');
     }
   };
 

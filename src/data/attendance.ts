@@ -1,63 +1,126 @@
-import { getFromLocalStorage, saveToLocalStorage } from './localStorage';
+import { supabase } from '../supabaseClient';
 import { Attendance } from './database';
 
-const ATTENDANCE_KEY = 'attendance';
+// Note: The local storage functions are now deprecated.
 
-const getInitialAttendance = (): Attendance[] => [];
+export const getAttendance = async (): Promise<Attendance[]> => {
+  const { data, error } = await supabase
+    .from('attendance')
+    .select(`
+      id,
+      check_in,
+      check_out,
+      status,
+      correction_request,
+      check_in_selfie_url,
+      employee_id,
+      employees ( id, name, position ),
+      hoteles ( id, name )
+    `);
 
-export const getAttendance = (): Attendance[] => getFromLocalStorage(ATTENDANCE_KEY, getInitialAttendance);
+  if (error) {
+    console.error('Error fetching attendance:', error);
+    return [];
+  }
 
-export const saveAttendance = (attendance: Attendance[]): void => {
-    saveToLocalStorage(ATTENDANCE_KEY, attendance);
+  // Map the data to the flat Attendance interface used by the frontend
+  const formattedData = data.map(r => ({
+    id: r.id,
+    employeeId: r.employees.id,
+    employeeName: r.employees.name,
+    hotelName: r.hoteles.name,
+    position: r.employees.position,
+    date: new Date(r.check_in).toISOString().split('T')[0], // Extract date from check_in
+    checkIn: new Date(r.check_in).toLocaleTimeString(),
+    checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString() : null,
+    workHours: r.check_out ? (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000 : null,
+    status: r.status as Attendance['status'],
+    correctionRequest: r.correction_request,
+    checkInSelfie: r.check_in_selfie_url,
+  }));
+
+  return formattedData;
 };
 
-export const checkIn = (employeeId: number, employeeName: string, hotelName: string, position: string, selfie: string): number | null => {
-    const attendance = getAttendance();
-    const today = new Date().toISOString().split('T')[0];
-    const existingEntry = attendance.find(a => a.employeeId === employeeId && a.date === today);
+export const checkIn = async (employeeId: number, hotelId: number, selfieUrl: string): Promise<number | null> => {
+  // Check for an existing check-in today for this employee that is not checked out
+  const today = new Date().toISOString().split('T')[0];
+  const { data: existing, error: existingError } = await supabase
+    .from('attendance')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .gte('check_in', `${today}T00:00:00Z`)
+    .lte('check_in', `${today}T23:59:59Z`)
+    .is('check_out', null);
 
-    if (!existingEntry) {
-        const newAttendance: Attendance = {
-            id: Date.now(),
-            employeeId,
-            employeeName,
-            hotelName,
-            position,
-            date: today,
-            checkIn: new Date().toLocaleTimeString(),
-            checkOut: null,
-            workHours: null,
-            status: 'ok',
-            checkInSelfie: selfie,
-        };
-        saveAttendance([...attendance, newAttendance]);
-        return newAttendance.id;
-    }
+  if (existingError) {
+    console.error('Error checking for existing check-in:', existingError);
     return null;
+  }
+
+  if (existing && existing.length > 0) {
+    console.warn('User has an open check-in for today already.');
+    return null; // Already checked in and not out
+  }
+
+  const { data, error } = await supabase
+    .from('attendance')
+    .insert({
+      employee_id: employeeId,
+      hotel_id: hotelId,
+      check_in_selfie_url: selfieUrl,
+      status: 'ok',
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Error during check-in:', error);
+    return null;
+  }
+
+  return data.id;
 };
 
-export const checkOut = (employeeId: number): void => {
-    const attendance = getAttendance();
-    const today = new Date().toISOString().split('T')[0];
-    const entry = attendance.find(a => a.employeeId === employeeId && a.date === today);
+export const checkOut = async (employeeId: number): Promise<void> => {
+  const today = new Date().toISOString().split('T')[0];
 
-    if (entry && entry.checkIn && !entry.checkOut) {
-        const checkOutTime = new Date();
-        entry.checkOut = checkOutTime.toLocaleTimeString();
-        const checkInTime = new Date(`${entry.date}T${entry.checkIn}`);
-        const workHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
-        entry.workHours = parseFloat(workHours.toFixed(2));
-        saveAttendance(attendance);
-    }
+  // Find the open check-in for today
+  const { data: entry, error: findError } = await supabase
+    .from('attendance')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .gte('check_in', `${today}T00:00:00Z`)
+    .lte('check_in', `${today}T23:59:59Z`)
+    .is('check_out', null)
+    .single();
+
+  if (findError || !entry) {
+    console.error('Could not find an open check-in to check out from.', findError);
+    return;
+  }
+
+  // Update the entry with the check-out time
+  const { error: updateError } = await supabase
+    .from('attendance')
+    .update({ check_out: new Date().toISOString() })
+    .eq('id', entry.id);
+
+  if (updateError) {
+    console.error('Error during check-out:', updateError);
+  }
 };
 
-export const requestCorrection = (attendanceId: number, message: string): void => {
-    const attendance = getAttendance();
-    const entry = attendance.find(a => a.id === attendanceId);
+export const requestCorrection = async (attendanceId: number, message: string): Promise<void> => {
+  const { error } = await supabase
+    .from('attendance')
+    .update({ 
+      status: 'pending_review', 
+      correction_request: message 
+    })
+    .eq('id', attendanceId);
 
-    if (entry) {
-        entry.status = 'pending_review';
-        entry.correctionRequest = message;
-        saveAttendance(attendance);
-    }
+  if (error) {
+    console.error('Error requesting correction:', error);
+  }
 };

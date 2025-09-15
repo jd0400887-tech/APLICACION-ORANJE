@@ -10,7 +10,7 @@ import {
   MenuItem,
 } from '@mui/material';
 
-function PersonnelRequestForm({ open, onClose, hotelName, onAddNewRequest }) {
+function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewRequest }) {
   const [formData, setFormData] = useState({
     city: '',
     state: '',
@@ -37,17 +37,11 @@ function PersonnelRequestForm({ open, onClose, hotelName, onAddNewRequest }) {
 
   const handleSubmit = () => {
     onAddNewRequest({
-      hotelName: hotelName,
+      hotel_id: hotelId,
       position: formData.position,
       quantity: parseInt(formData.quantity, 10) || 1,
     });
-    console.log('Solicitud de Requerimiento de Personal enviada:', { hotel: hotelName, ...formData });
     onClose(); // Close the dialog after submission
-    setFormData({ // Reset form
-      city: '', state: '', manager: '', contact: '', position: '', quantity: '',
-      startTime: '', startDate: '', endDate: '', englishSpeakingLevel: '',
-      englishListeningLevel: '', experience: '', observations: '',
-    });
   };
 
   return (

@@ -40,9 +40,11 @@ function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employ
     return employees.filter(emp => emp.hotel === hotel.name && emp.status === 'Assigned');
   }, [employees, hotel.name]);
 
-  const handleSaveHotel = (updatedHotelData: Hotel) => {
-    updateHotel(updatedHotelData);
-    onHotelUpdated(updatedHotelData);
+  const handleSaveHotel = async (updatedHotelData: Hotel) => {
+    const updatedHotel = await updateHotel(updatedHotelData);
+    if (updatedHotel) {
+      onHotelUpdated(updatedHotel);
+    }
     setIsEditOpen(false);
   };
 
@@ -142,6 +144,7 @@ function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employ
         open={openPersonnelRequest}
         onClose={() => setOpenPersonnelRequest(false)}
         hotelName={hotel.name}
+        hotelId={hotel.id}
         onAddNewRequest={onAddNewRequest}
       />
       <IncidentAlertForm

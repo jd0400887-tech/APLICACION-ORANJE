@@ -16,23 +16,25 @@ import {
   MenuItem,
   ButtonGroup,
   useTheme,
-  CardActions, // Added CardActions
+  CardActions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/AddOutlined';
-import { Hotel, deleteHotel, getHotels } from '../data/database';
+import { Hotel } from '../data/database';
 import { getDisplayImage } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 
 interface HotelManagementProps {
   hotels: Hotel[];
   onSelectHotel: (hotel: Hotel) => void;
-  onAddNewHotel: (newHotelData: Omit<Hotel, 'id'>) => void;
+  onAddNewHotel: (newHotelData: Omit<Hotel, 'id' | 'user_id'>) => void;
+  onDeleteHotel: (hotelId: number) => void;
+  onUpdateStatus: (hotelId: number, status: 'Client' | 'Prospect') => void;
 }
 
-const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, mainButtonStyles }) => (
+const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, onUpdateStatus, mainButtonStyles }) => (
     <Grid container spacing={3} sx={{ mt: 2 }}>
       {hotels.map((hotel) => (
-        <Grid key={hotel.id} xs={12} sm={6} md={4}> {/* Removed 'item' prop */}
+        <Grid key={hotel.id} item xs={12} sm={6} md={4}>
           <Card>
             <CardActionArea onClick={() => onSelectHotel(hotel)}>
               <CardMedia
@@ -47,8 +49,19 @@ const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, main
                 </Typography>
               </CardContent>
             </CardActionArea>
-            {currentUser && currentUser.role === 'Admin' && (
-              <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+            <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+              {hotel.status === 'Prospect' && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  onClick={() => onUpdateStatus(hotel.id, 'Client')}
+                  sx={mainButtonStyles}
+                >
+                  Convertir a Cliente
+                </Button>
+              )}
+              {currentUser && currentUser.role === 'Admin' && (
                 <Button
                   size="small"
                   variant="contained"
@@ -58,15 +71,15 @@ const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, main
                 >
                   Eliminar
                 </Button>
-              </CardActions>
-            )}
+              )}
+            </CardActions>
           </Card>
         </Grid>
       ))}
     </Grid>
 );
 
-function HotelManagement({ hotels, onSelectHotel, onAddNewHotel }: HotelManagementProps) {
+function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHotel, onUpdateStatus }: HotelManagementProps) {
   const theme = useTheme();
   const { currentUser } = useAuth();
   const [open, setOpen] = useState(false);
@@ -125,8 +138,7 @@ function HotelManagement({ hotels, onSelectHotel, onAddNewHotel }: HotelManageme
 
   const handleDeleteHotel = (hotelId: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este hotel?')) {
-      deleteHotel(hotelId);
-      setHotels(getHotels()); // Refresh the list
+      onDeleteHotel(hotelId); // Call the prop function
     }
   };
 
@@ -171,9 +183,9 @@ function HotelManagement({ hotels, onSelectHotel, onAddNewHotel }: HotelManageme
       </Box>
 
       {view === 'Client' ? (
-        <HotelGrid hotels={clientHotels} onSelectHotel={onSelectHotel} currentUser={currentUser} handleDeleteHotel={handleDeleteHotel} mainButtonStyles={mainButtonStyles} />
+        <HotelGrid hotels={clientHotels} onSelectHotel={onSelectHotel} currentUser={currentUser} handleDeleteHotel={handleDeleteHotel} onUpdateStatus={onUpdateStatus} mainButtonStyles={mainButtonStyles} />
       ) : (
-        <HotelGrid hotels={prospectHotels} onSelectHotel={onSelectHotel} currentUser={currentUser} handleDeleteHotel={handleDeleteHotel} mainButtonStyles={mainButtonStyles} />
+        <HotelGrid hotels={prospectHotels} onSelectHotel={onSelectHotel} currentUser={currentUser} handleDeleteHotel={handleDeleteHotel} onUpdateStatus={onUpdateStatus} mainButtonStyles={mainButtonStyles} />
       )}
 
       {/* Add Hotel Dialog */}

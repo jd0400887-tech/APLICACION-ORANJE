@@ -14,7 +14,11 @@ const NominaDashboard: React.FC = () => {
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
-    setAttendanceRecords(getAttendance());
+    const fetchRecords = async () => {
+      const records = await getAttendance();
+      setAttendanceRecords(records);
+    };
+    fetchRecords();
   }, []);
 
   const formatDuration = (checkIn: string | null, checkOut: string | null, date: string) => {
