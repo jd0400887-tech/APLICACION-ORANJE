@@ -25,6 +25,7 @@ import PermissionsDashboard from './components/PermissionsDashboard';
 import NominaDashboard from './components/NominaDashboard';
 import InventoryDashboard from './components/InventoryDashboard';
 import QADashboard from './components/QADashboard';
+import ProspectDashboard from './components/ProspectDashboard';
 import { useAuth } from './context/AuthContext';
 import { useNotification } from './context/NotificationContext';
 import { QAProvider } from './context/QAContext';
@@ -98,9 +99,23 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(true);
 
   const [employees, setEmployees] = useState<Employee[]>(getEmployees());
-  const [personnelRequests, setPersonnelRequests] = useState<PersonnelRequest[]>(getPersonnelRequests());
-  const [candidates, setCandidates] = useState<Candidate[]>(getCandidates());
-  const [hotels, setHotels] = useState<Hotel[]>(getHotels());
+  const [personnelRequests, setPersonnelRequests] = useState<PersonnelRequest[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+    const [hotels, setHotels] = useState<Hotel[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const hotelsData = await getHotels();
+      setHotels(hotelsData);
+      const employeesData = await getEmployees();
+      setEmployees(employeesData);
+      const candidatesData = await getCandidates();
+      setCandidates(candidatesData);
+      const requestsData = await getPersonnelRequests();
+      setPersonnelRequests(requestsData);
+    };
+    fetchData();
+  }, []);
   const [qaInspections, setQaInspections] = useState<QAInspection[]>(getQAInspections());
 
   
@@ -128,62 +143,84 @@ function App() {
   };
 
   // ... (data handling functions remain the same)
-  const handleAddNewRequest = (newRequestData: Omit<PersonnelRequest, 'id' | 'status'>) => {
-    dbAddPersonnelRequest(newRequestData);
-    setPersonnelRequests(getPersonnelRequests());
+  const handleAddNewRequest = async (newRequestData: { hotel_id: number; position: string; quantity: number; }) => {
+    await dbAddPersonnelRequest(newRequestData);
+    const updatedRequests = await getPersonnelRequests();
+    setPersonnelRequests(updatedRequests);
     showNotification('Solicitud de personal creada con éxito', 'success');
   };
 
-  const handleAssignEmployee = (employeeId: number, hotelName: string) => {
-    dbAssignEmployeeToHotel(employeeId, hotelName);
-    setEmployees(getEmployees());
+  const handleAssignEmployee = async (employeeId: number, hotelName: string) => {
+    await dbAssignEmployeeToHotel(employeeId, hotelName);
+    const updatedEmployees = await getEmployees();
+    setEmployees(updatedEmployees);
     showNotification('Empleado asignado correctamente', 'success');
   };
 
-  const handleFulfillRequest = (requestId: number) => {
-    dbFulfillRequest(requestId);
-    setPersonnelRequests(getPersonnelRequests());
+  const handleFulfillRequest = async (requestId: number) => {
+    await dbFulfillRequest(requestId);
+    const updatedRequests = await getPersonnelRequests();
+    setPersonnelRequests(updatedRequests);
     showNotification('Solicitud completada', 'success');
   };
 
-  const handlePromoteCandidate = (candidateId: number) => {
-    dbPromoteCandidate(candidateId);
-    setCandidates(getCandidates());
-    setEmployees(getEmployees());
+  const handlePromoteCandidate = async (candidateId: number) => {
+    await dbPromoteCandidate(candidateId);
+    const updatedCandidates = await getCandidates();
+    setCandidates(updatedCandidates);
+    const updatedEmployees = await getEmployees();
+    setEmployees(updatedEmployees);
     showNotification('Candidato promovido a empleado', 'success');
   };
 
-  const handleAddNewHotel = (newHotelData: Omit<Hotel, 'id'>) => {
-    dbAddHotel(newHotelData);
-    setHotels(getHotels());
+  const handleAddNewHotel = async (newHotelData: Omit<Hotel, 'id' | 'user_id'>) => {
+    await dbAddHotel(newHotelData);
+    const updatedHotels = await getHotels();
+    setHotels(updatedHotels);
     showNotification('Hotel añadido con éxito', 'success');
   };
 
-  const handleUpdateHotelStatus = (hotelId: number) => {
-    dbUpdateHotelStatus(hotelId);
-    setHotels(getHotels());
+  const handleUpdateHotelStatus = async (hotelId: number, status: 'Client' | 'Prospect') => {
+    await dbUpdateHotelStatus(hotelId, status);
+    const updatedHotels = await getHotels();
+    setHotels(updatedHotels);
     showNotification('El estado del hotel ha sido actualizado', 'success');
   };
 
-  const handleHotelUpdated = (updatedHotel: Hotel) => {
-    setHotels(getHotels());
-    setSelectedHotel(updatedHotel);
+  const handleDeleteHotel = async (hotelId: number) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este hotel?')) {
+      await deleteHotel(hotelId);
+      const updatedHotels = await getHotels();
+      setHotels(updatedHotels);
+      showNotification('Hotel eliminado con éxito', 'success');
+    }
   };
 
-  const handleUpdateEmployee = (updatedEmployee: Employee) => {
-    dbUpdateEmployee(updatedEmployee);
-    setEmployees(getEmployees());
+  const handleHotelUpdated = async (updatedHotel: Hotel) => {
+    const updatedHotels = await getHotels();
+    setHotels(updatedHotels);
+    const refreshedHotel = updatedHotels.find(h => h.id === updatedHotel.id) || null;
+    setSelectedHotel(refreshedHotel);
+    showNotification('Hotel actualizado con éxito', 'success');
+  };
+
+  const handleUpdateEmployee = async (updatedEmployee: Employee) => {
+    await dbUpdateEmployee(updatedEmployee);
+    const updatedEmployees = await getEmployees();
+    setEmployees(updatedEmployees);
     showNotification('Empleado actualizado con éxito', 'success');
   };
 
-  const handleDeleteEmployee = (employeeId: number) => {
-    dbDeleteEmployee(employeeId);
-    setEmployees(getEmployees());
+  const handleDeleteEmployee = async (employeeId: number) => {
+    await dbDeleteEmployee(employeeId);
+    const updatedEmployees = await getEmployees();
+    setEmployees(updatedEmployees);
     showNotification('Empleado eliminado con éxito', 'success');
   };
 
-  const handleRefreshEmployees = () => {
-    setEmployees(getEmployees());
+  const handleRefreshEmployees = async () => {
+    const updatedEmployees = await getEmployees();
+    setEmployees(updatedEmployees);
   };
 
   const handleAddInspection = (data: Omit<QAInspection, 'id'>) => {
@@ -251,11 +288,15 @@ function App() {
   const renderContent = () => {
     switch (selectedModule) {
       case 'Hotel Mg':
-        return selectedHotel ? (
-          <HotelDashboard hotel={selectedHotel} onBack={() => setSelectedHotel(null)} employees={employees} onAddNewRequest={handleAddNewRequest} onHotelUpdated={handleHotelUpdated} />
-        ) : (
-          <HotelManagement hotels={hotels} onSelectHotel={setSelectedHotel} onAddNewHotel={handleAddNewHotel} />
-        );
+        if (selectedHotel) {
+          return selectedHotel.status === 'Client' ? (
+            <HotelDashboard hotel={selectedHotel} onBack={() => setSelectedHotel(null)} employees={employees} onAddNewRequest={handleAddNewRequest} onHotelUpdated={handleHotelUpdated} />
+          ) : (
+            <ProspectDashboard hotel={selectedHotel} onBack={() => setSelectedHotel(null)} />
+          );
+        } else {
+          return <HotelManagement hotels={hotels} onSelectHotel={setSelectedHotel} onAddNewHotel={handleAddNewHotel} onDeleteHotel={handleDeleteHotel} onUpdateStatus={handleUpdateHotelStatus} />;
+        }
       case 'Reclutamiento':
         return <RecruitmentDashboard requests={personnelRequests} employees={employees} onAssignEmployee={handleAssignEmployee} onFulfillRequest={handleFulfillRequest} onEmployeeListRefresh={() => setEmployees(getEmployees())} />;
       case 'Candidatos':

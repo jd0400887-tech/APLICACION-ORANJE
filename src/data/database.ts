@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 import { getFromLocalStorage, saveToLocalStorage } from './localStorage';
 
 // Interfaces
@@ -45,6 +46,7 @@ export interface Hotel {
     generalManager: string;
     contact: string;
     email: string;
+    contract_url?: string | null; // Added for contract link
 }
 
 export interface InventoryItem {
@@ -81,144 +83,319 @@ export interface QAInspection {
 
 
 // localStorage keys
-const EMPLOYEES_KEY = 'employees';
-const CANDIDATES_KEY = 'candidates';
-const PERSONNEL_REQUESTS_KEY = 'personnelRequests';
-const HOTELS_KEY = 'hotels';
 const INVENTORY_KEY = 'inventory';
 const QA_INSPECTIONS_KEY = 'qaInspections';
 
 
-// Initial Data getters
-const getInitialEmployees = (): Employee[] => [
-    {
-        id: 999, name: 'David Admin', position: 'Administrator', status: 'Available', hotel: null,
-        email: 'davidadmin@gmail.com', dob: '1990-01-01', phone: '555-0199', country: 'Adminland', state: 'Adminstate', city: 'Admincity', zip: 'A1DMIN', address: '123 Admin Street',
-        imageUrl: 'https://randomuser.me/api/portraits/men/99.jpg', role: 'Admin', isBlacklisted: false
-      },
-      {
-        id: 1000, name: 'Test User', position: 'Tester', status: 'Available', hotel: null,
-        email: 'test@example.com', dob: '2000-01-01', phone: '555-555-5555', country: 'Testland', state: 'Teststate', city: 'Testcity', zip: 'T3ST', address: '123 Test Street',
-        imageUrl: 'https://randomuser.me/api/portraits/men/1.jpg', role: 'Trabajador', isBlacklisted: false
-      },
-];
 
-const getInitialCandidates = (): Candidate[] => [
-    {
-        id: 201, name: 'Laura Torres', position: 'Recepcionista', email: 'laura.t@example.com',
-        dob: '1995-02-20', phone: '555-0201', country: 'España', state: 'Madrid', city: 'Madrid', zip: '28001',
-        address: 'Calle de Alcalá, 20', imageUrl: 'https://randomuser.me/api/portraits/women/68.jpg', isBlacklisted: false
-      },
-];
 
-const getInitialPersonnelRequests = (): PersonnelRequest[] => [
-  { id: 1, hotelName: 'Grand Hyatt', position: 'Recepcionista', quantity: 1, status: 'Pending' },
-];
 
-const getInitialHotels = (): Hotel[] => [
-    { id: 1, name: 'Grand Hyatt', imageUrl: 'https://picsum.photos/seed/grandhyatt/600/400', status: 'Client', address: '123 Luxury Ave', city: 'New York', generalManager: 'John Smith', contact: '111-222-3333', email: 'contact@hyatt.com' },
-];
 
+// Data access functions
+export const getEmployees = async (): Promise<Employee[]> => {
+  const { data, error } = await supabase
+    .from('employees')
+    .select(`
+      *,
+      hoteles ( name )
+    `);
+  if (error) {
+    console.error('Error fetching employees:', error);
+    return [];
+  }
+  return data.map((employee: any) => ({
+    ...employee,
+    hotel: employee.hoteles ? employee.hoteles.name : null,
+  })) as Employee[];
+};
+
+export const getCandidates = async (): Promise<Candidate[]> => {
+  const { data, error } = await supabase.from('candidates').select('*');
+  if (error) {
+    console.error('Error fetching candidates:', error);
+    return [];
+  }
+  return data as Candidate[];
+};
+
+export const getPersonnelRequests = async (): Promise<PersonnelRequest[]> => {
+  const { data, error } = await supabase
+    .from('personnel_requests')
+    .select(`
+      id,
+      position,
+      quantity,
+      status,
+      hoteles ( name )
+    `);
+
+  if (error) {
+    console.error('Error fetching personnel requests:', error);
+    return [];
+  }
+
+  const formattedData = data.map(r => ({
+    id: r.id,
+    position: r.position,
+    quantity: r.quantity,
+    status: r.status,
+    hotelName: r.hoteles.name
+  }));
+
+  return formattedData;
+};
+
+// Initial Data getters (These are now deprecated but kept for reference)
 const getInitialInventory = (): InventoryItem[] => [
   { id: 1, name: 'Pantalones', quantity: 50 },
   { id: 2, name: 'Camisas', quantity: 70 },
 ];
+const getInitialQAInspections = (): QAInspection[] => [];
 
-const getInitialQAInspections = (): QAInspection[] => [
-  { id: 1, hotelName: 'Grand Hyatt', inspectorName: 'David Admin', date: '2024-07-28', area: 'Lobby', score: 8, comments: 'El lobby estaba limpio y ordenado.' },
-  { id: 2, hotelName: 'Grand Hyatt', inspectorName: 'David Admin', date: '2024-07-28', area: 'Piscina', score: 6, comments: 'El área de la piscina necesita más atención.', employeeId: 201 },
-];
+
 
 // Data access functions
-export const getEmployees = (): Employee[] => getFromLocalStorage(EMPLOYEES_KEY, getInitialEmployees);
-export const getCandidates = (): Candidate[] => getFromLocalStorage(CANDIDATES_KEY, getInitialCandidates);
-export const getPersonnelRequests = (): PersonnelRequest[] => getFromLocalStorage(PERSONNEL_REQUESTS_KEY, getInitialPersonnelRequests);
-export const getHotels = (): Hotel[] => getFromLocalStorage(HOTELS_KEY, getInitialHotels);
 export const getInventory = (): InventoryItem[] => getFromLocalStorage(INVENTORY_KEY, getInitialInventory);
 export const getQAInspections = (): QAInspection[] => getFromLocalStorage(QA_INSPECTIONS_KEY, getInitialQAInspections);
 
-// Data modification functions
-export const addPersonnelRequest = (newRequestData: Omit<PersonnelRequest, 'id' | 'status'>): void => {
-  const requests = getPersonnelRequests();
-  const newRequest: PersonnelRequest = { ...newRequestData, id: Date.now(), status: 'Pending' };
-  saveToLocalStorage(PERSONNEL_REQUESTS_KEY, [...requests, newRequest]);
+export const getHotels = async (): Promise<Hotel[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.error('No user logged in');
+    return [];
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) {
+    console.error('Error fetching user profile:', profileError);
+    return [];
+  }
+
+  let query = supabase.from('hoteles').select('*');
+
+  if (profile && profile.role !== 'Admin') {
+    query = query.eq('user_id', user.id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching hotels:', error);
+    return [];
+  }
+
+  return data as Hotel[];
 };
 
-export const assignEmployeeToHotel = (employeeId: number, hotelName: string): void => {
-  const employees = getEmployees();
-  const updatedEmployees = employees.map(emp =>
-    emp.id === employeeId ? { ...emp, status: 'Assigned', hotel: hotelName } : emp
-  );
-  saveToLocalStorage(EMPLOYEES_KEY, updatedEmployees);
+export const addHotel = async (newHotelData: Omit<Hotel, 'id'>): Promise<Hotel | null> => {
+  const { data, error } = await supabase
+    .from('hoteles')
+    .insert([newHotelData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding hotel:', error);
+    return null;
+  }
+  return data as Hotel;
 };
 
-export const fulfillRequest = (requestId: number): void => {
-    const requests = getPersonnelRequests();
-    const updatedRequests = requests.map(req =>
-        req.id === requestId ? { ...req, status: 'Fulfilled' } : req
-    );
-    saveToLocalStorage(PERSONNEL_REQUESTS_KEY, updatedRequests);
+export const addPersonnelRequest = async (newRequestData: { hotel_id: number; position: string; quantity: number; }): Promise<void> => {
+  const { error } = await supabase
+    .from('personnel_requests')
+    .insert([newRequestData]);
+
+  if (error) {
+    console.error('Error adding personnel request:', error);
+  }
 };
 
-export const promoteCandidateToEmployee = (candidateId: number): void => {
-  const candidates = getCandidates();
-  const employees = getEmployees();
-  const candidate = candidates.find(c => c.id === candidateId);
-  if (!candidate || candidate.isBlacklisted) return;
+export const assignEmployeeToHotel = async (employeeId: number, hotelName: string): Promise<void> => {
+  const { data: hotel, error: hotelError } = await supabase
+    .from('hoteles')
+    .select('id')
+    .eq('name', hotelName)
+    .single();
 
-  const newEmployee: Employee = { ...candidate, status: 'Available', hotel: null, role: 'Trabajador' };
-  const newCandidates = candidates.filter(c => c.id !== candidateId);
-  const newEmployees = [...employees, newEmployee];
+  if (hotelError || !hotel) {
+    console.error('Error finding hotel to assign:', hotelError);
+    return;
+  }
 
-  saveToLocalStorage(CANDIDATES_KEY, newCandidates);
-  saveToLocalStorage(EMPLOYEES_KEY, newEmployees);
+  const { error: employeeError } = await supabase
+    .from('employees')
+    .update({ status: 'Assigned', hotel_id: hotel.id })
+    .eq('id', employeeId);
+
+  if (employeeError) {
+    console.error('Error assigning employee to hotel:', employeeError);
+  }
 };
 
-export const addHotel = (newHotelData: Omit<Hotel, 'id'>): void => {
-  const hotels = getHotels();
-  const newHotel: Hotel = { ...newHotelData, id: Date.now() };
-  saveToLocalStorage(HOTELS_KEY, [...hotels, newHotel]);
+export const fulfillRequest = async (requestId: number): Promise<void> => {
+  const { error } = await supabase
+    .from('personnel_requests')
+    .update({ status: 'Fulfilled' })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error('Error fulfilling request:', error);
+  }
 };
 
-export const updateHotelStatus = (hotelId: number): void => {
-  const hotels = getHotels();
-  const updatedHotels = hotels.map(hotel =>
-    hotel.id === hotelId ? { ...hotel, status: 'Client' } : hotel
-  );
-  saveToLocalStorage(HOTELS_KEY, updatedHotels);
+export const promoteCandidateToEmployee = async (candidateId: number): Promise<void> => {
+  const { data: candidate, error: fetchError } = await supabase
+    .from('candidates')
+    .select('*')
+    .eq('id', candidateId)
+    .single();
+
+  if (fetchError || !candidate) {
+    console.error('Error fetching candidate to promote:', fetchError);
+    return;
+  }
+
+  if (candidate.is_blacklisted) {
+    console.error('Cannot promote a blacklisted candidate.');
+    return;
+  }
+
+  const { id, created_at, ...candidateData } = candidate;
+  const newEmployeeData = {
+    ...candidateData,
+    status: 'Available',
+    hotel_id: null,
+    role: 'Trabajador'
+  };
+
+  const { error: insertError } = await supabase
+    .from('employees')
+    .insert([newEmployeeData]);
+
+  if (insertError) {
+    console.error('Error inserting new employee:', insertError);
+    return;
+  }
+
+  const { error: deleteError } = await supabase
+    .from('candidates')
+    .delete()
+    .eq('id', candidateId);
+
+  if (deleteError) {
+    console.error('Error deleting promoted candidate:', deleteError);
+  }
 };
 
-export const updateHotel = (updatedHotel: Hotel): void => {
-  const hotels = getHotels();
-  const updatedHotels = hotels.map(hotel =>
-    hotel.id === updatedHotel.id ? updatedHotel : hotel
-  );
-  saveToLocalStorage(HOTELS_KEY, updatedHotels);
+export const updateHotelStatus = async (hotelId: number, status: 'Client' | 'Prospect'): Promise<Hotel | null> => {
+  const { data, error } = await supabase
+    .from('hoteles')
+    .update({ status })
+    .eq('id', hotelId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating hotel status:', error);
+    return null;
+  }
+  return data as Hotel;
 };
 
-export const updateEmployee = (updatedEmployeeData: Employee): void => {
-  const employees = getEmployees();
-  const updatedEmployees = employees.map(emp =>
-    emp.id === updatedEmployeeData.id ? { ...updatedEmployeeData } : emp
-  );
-  saveToLocalStorage(EMPLOYEES_KEY, updatedEmployees);
+export const updateHotel = async (updatedHotel: Hotel): Promise<Hotel | null> => {
+  const { id, ...otherFields } = updatedHotel;
+
+  const { data, error } = await supabase
+    .from('hoteles')
+    .update(otherFields)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating hotel:', error);
+    return null;
+  }
+  return data as Hotel;
+};
+
+export const updateEmployee = async (updatedEmployeeData: Employee): Promise<void> => {
+  const { error } = await supabase
+    .from('employees')
+    .update(updatedEmployeeData)
+    .eq('id', updatedEmployeeData.id);
+
+  if (error) {
+    console.error('Error updating employee:', error);
+  }
 };
 
 export const saveEmployees = (employees: Employee[]): void => {
-    saveToLocalStorage(EMPLOYEES_KEY, employees);
+    // This function is deprecated
 };
 
-export const deleteEmployee = (employeeId: number): void => {
-  const employees = getEmployees();
-  const updatedEmployees = employees.filter(emp => emp.id !== employeeId);
-  saveToLocalStorage(EMPLOYEES_KEY, updatedEmployees);
+export const deleteEmployee = async (employeeId: number): Promise<void> => {
+  const { error } = await supabase
+    .from('employees')
+    .delete()
+    .eq('id', employeeId);
+
+  if (error) {
+    console.error('Error deleting employee:', error);
+  }
 };
 
-export const deleteHotel = (hotelId: number): void => {
-  const hotels = getHotels();
-  const updatedHotels = hotels.filter(hotel => hotel.id !== hotelId);
-  saveToLocalStorage(HOTELS_KEY, updatedHotels);
+export const deleteHotel = async (hotelId: number): Promise<void> => {
+  const { error } = await supabase
+    .from('hoteles')
+    .delete()
+    .eq('id', hotelId);
+
+  if (error) {
+    console.error('Error deleting hotel:', error);
+  }
 };
+
+// --- Storage Functions ---
+
+export const uploadContract = async (file: File): Promise<string | null> => {
+  const filePath = `public/${Date.now()}-${file.name}`;
+
+  const { error } = await supabase.storage
+    .from('contracts')
+    .upload(filePath, file);
+
+  if (error) {
+    console.error('Error uploading contract:', error);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('contracts')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
+export const updateHotelContractUrl = async (hotelId: number, contractUrl: string): Promise<void> => {
+  const { error } = await supabase
+    .from('hoteles')
+    .update({ contract_url: contractUrl })
+    .eq('id', hotelId);
+
+  if (error) {
+    console.error('Error updating hotel with contract URL:', error);
+  }
+};
+
+// --- Unmigrated Functions ---
 
 export const updateInventory = (itemId: number, newQuantity: number): void => {
   const inventory = getInventory();
@@ -229,7 +406,12 @@ export const updateInventory = (itemId: number, newQuantity: number): void => {
 };
 
 export const assignUniformToEmployee = (employeeId: number, itemType: 'Pantalones' | 'Camisas'): { success: boolean; message: string } => {
-  const employees = getEmployees();
+  // This function is broken because getEmployees is now async
+  // It needs to be migrated to use async/await and Supabase
+  console.error('assignUniformToEmployee is not fully migrated and will not work correctly.');
+  return { success: false, message: 'Function not migrated.' };
+  /*
+  const employees = getEmployees(); 
   const inventory = getInventory();
 
   const employee = employees.find(e => e.id === employeeId);
@@ -240,31 +422,15 @@ export const assignUniformToEmployee = (employeeId: number, itemType: 'Pantalone
 
   if (inventoryItem.quantity <= 0) return { success: false, message: `No hay ${itemType} en stock.` };
 
-  // Decrement inventory
   const updatedInventory = inventory.map(i => 
     i.id === inventoryItem.id ? { ...i, quantity: i.quantity - 1 } : i
   );
   saveToLocalStorage(INVENTORY_KEY, updatedInventory);
 
-  // Increment employee uniform count
-  const updatedEmployees = employees.map(e => {
-    if (e.id === employeeId) {
-      const newUniforms = { ...e.uniforms };
-      if (itemType === 'Pantalones') {
-        newUniforms.pants = (newUniforms.pants || 0) + 1;
-      } else {
-        newUniforms.shirts = (newUniforms.shirts || 0) + 1;
-      }
-      return { ...e, uniforms: newUniforms };
-    }
-    return e;
-  });
-  saveToLocalStorage(EMPLOYEES_KEY, updatedEmployees);
-
   return { success: true, message: `Se asignó ${itemType} a ${employee.name}.` };
+  */
 };
 
-// QA Inspections CRUD
 export const addQAInspection = (inspectionData: Omit<QAInspection, 'id'>): void => {
   const inspections = getQAInspections();
   const newInspection: QAInspection = {
