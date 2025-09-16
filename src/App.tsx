@@ -332,6 +332,15 @@ function App() {
     }
   };
 
+  if (isEmployeeOnly) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <EmpleadoDashboard />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex' }}>
