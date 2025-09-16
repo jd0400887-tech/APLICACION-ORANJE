@@ -279,12 +279,12 @@ const EmpleadoDashboard: React.FC = () => {
             )}
             {currentUser && (
               <Card elevation={3} sx={{ mb: 3, borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
-                <CardContent sx={{ p: isMobile ? 2 : 3 }}><Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><Avatar src={currentUser.imageUrl} sx={{ width: 60, height: 60, mr: 2 }} /><Box><Typography variant="h6" component="div">{currentUser.name}</Typography><Typography variant="body1" color="text.secondary">{currentUser.role} - {currentUser.position}</Typography></Box></Box></CardContent>
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}><Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap' }}><Avatar src={currentUser.imageUrl} sx={{ width: 60, height: 60, mr: 2 }} /><Box><Typography variant="h6" component="div">{currentUser.name}</Typography><Typography variant="body1" color="text.secondary">{currentUser.role} - {currentUser.position}</Typography></Box></Box></CardContent>
               </Card>
             )}
             <Paper elevation={3} sx={{ p: 2, borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
               <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>Registro de Jornada</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
               <Box sx={{ mb: 2 }}>{renderLocationStatus()}</Box>
               <Box><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
             </Paper>
