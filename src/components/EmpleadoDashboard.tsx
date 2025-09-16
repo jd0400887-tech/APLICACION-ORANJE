@@ -286,7 +286,7 @@ const EmpleadoDashboard: React.FC = () => {
               <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>Registro de Jornada</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
               <Box sx={{ mb: 2 }}>{renderLocationStatus()}</Box>
-              <Box><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
             </Paper>
           </>
         );
