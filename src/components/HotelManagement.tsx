@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -17,11 +17,31 @@ import {
   ButtonGroup,
   useTheme,
   CardActions,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/AddOutlined';
 import { Hotel } from '../data/database';
 import { getDisplayImage } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
+import throttle from 'lodash/throttle';
+
+interface PlaceSuggestion {
+  place_id: string;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address: {
+    road?: string;
+    house_number?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+  };
+}
 
 interface HotelManagementProps {
   hotels: Hotel[];
@@ -88,12 +108,61 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
     imageUrl: '',
     status: 'Prospect',
     address: '',
+    street: '',
+    houseNumber: '',
+    postcode: '',
+    state: '',
+    country: '',
     city: '',
     generalManager: '',
     contact: '',
     email: '',
+    latitude: undefined,
+    longitude: undefined,
   });
   const [view, setView] = useState<'Client' | 'Prospect'>('Client');
+  const [inputValue, setInputValue] = useState('');
+  const [options, setOptions] = useState<readonly PlaceSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [geolocationLoading, setGeolocationLoading] = useState(false);
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
+
+  const fetchSuggestions = useMemo(
+    () =>
+      throttle((input: string, callback: (results: PlaceSuggestion[]) => void) => {
+        (async () => {
+          if (input.length < 3) {
+            callback([]);
+            return;
+          }
+          setLoading(true);
+          const response = await fetch(`/api/search?q=${encodeURIComponent(input)}&format=json&addressdetails=1`);
+          const data = await response.json();
+          callback(data || []);
+          setLoading(false);
+        })();
+      }, 400),
+    [],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    if (inputValue === '') {
+      setOptions([]);
+      return undefined;
+    }
+
+    fetchSuggestions(inputValue, (results) => {
+      if (active) {
+        setOptions(results);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [inputValue, fetchSuggestions]);
 
   const { clientHotels, prospectHotels } = useMemo(() => {
     const clients = hotels.filter(h => h.status === 'Client');
@@ -124,6 +193,11 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
       imageUrl: '',
       status: 'Prospect',
       address: '',
+      street: '',
+      houseNumber: '',
+      postcode: '',
+      state: '',
+      country: '',
       city: '',
       generalManager: '',
       contact: '',
@@ -136,6 +210,32 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
     setNewHotel((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleUseCurrentLocation = () => {
+    setGeolocationLoading(true);
+    setGeolocationError(null);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setNewHotel((prev) => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }));
+          setGeolocationLoading(false);
+        },
+        (error) => {
+          console.error('Error getting geolocation:', error);
+          setGeolocationError('No se pudo obtener la ubicación actual. Por favor, asegúrate de que los servicios de ubicación estén activados y que hayas dado permiso.');
+          setGeolocationLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setGeolocationError('La geolocalización no es compatible con este navegador.');
+      setGeolocationLoading(false);
+    }
+  };
+
   const handleDeleteHotel = (hotelId: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este hotel?')) {
       onDeleteHotel(hotelId); // Call the prop function
@@ -145,7 +245,7 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
   const handleAddHotel = () => {
     if (
       newHotel.name &&
-      newHotel.address &&
+      newHotel.street && // Validate street instead of general address
       newHotel.city &&
       newHotel.generalManager &&
       newHotel.contact &&
@@ -226,24 +326,93 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
             <MenuItem value="Client">Cliente</MenuItem>
             <MenuItem value="Prospect">Prospecto</MenuItem>
           </TextField>
+          <Autocomplete
+            id="address-autocomplete-add"
+            sx={{ mt: 1, mb: 1 }}
+            getOptionLabel={(option) => typeof option === 'string' ? option : option.display_name}
+            filterOptions={(x) => x}
+            options={options}
+            autoComplete
+            includeInputInList
+            filterSelectedOptions
+            value={inputValue}
+            noOptionsText="No locations found"
+            loading={loading}
+            onChange={(event: any, newValue: PlaceSuggestion | string | null) => {
+              setOptions([]);
+              if (typeof newValue === 'object' && newValue !== null) {
+                const street = newValue.address.road || newValue.address.footway || newValue.address.pedestrian || '';
+                const houseNumber = newValue.address.house_number || '';
+                const postcode = newValue.address.postcode || '';
+                const state = newValue.address.state || '';
+                const country = newValue.address.country || '';
+                const city = newValue.address.city || newValue.address.town || newValue.address.village || '';
+                setNewHotel({
+                  ...newHotel,
+                  address: newValue.display_name, // Store full display name for general reference
+                  street: street,
+                  houseNumber: houseNumber,
+                  postcode: postcode,
+                  state: state,
+                  country: country,
+                  city: city,
+                  latitude: parseFloat(newValue.lat),
+                  longitude: parseFloat(newValue.lon),
+                });
+                setInputValue(newValue.display_name);
+              }
+            }}
+            onInputChange={(event, newInputValue) => {
+              setInputValue(newInputValue);
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Dirección"
+                fullWidth
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+          <Button
+            variant="outlined"
+            onClick={handleUseCurrentLocation}
+            disabled={geolocationLoading}
+            sx={{ mt: 1, mb: 1 }}
+          >
+            {geolocationLoading ? <CircularProgress size={24} /> : 'Usar Ubicación Actual'}
+          </Button>
+          {geolocationError && (
+            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+              {geolocationError}
+            </Typography>
+          )}
           <TextField
             margin="dense"
-            name="address"
-            label="Dirección"
-            type="text"
+            name="latitude"
+            label="Latitud"
+            type="number"
             fullWidth
             variant="standard"
-            value={newHotel.address}
+            value={newHotel.latitude ?? ''}
             onChange={handleChange}
           />
           <TextField
             margin="dense"
-            name="city"
-            label="Ciudad"
-            type="text"
+            name="longitude"
+            label="Longitud"
+            type="number"
             fullWidth
             variant="standard"
-            value={newHotel.city}
+            value={newHotel.longitude ?? ''}
             onChange={handleChange}
           />
           <TextField

@@ -26,31 +26,15 @@ interface HotelWithLocation extends Hotel {
 }
 
 const DashboardContent: React.FC<DashboardContentProps> = ({ hotels }) => {
-  const [hotelLocations, setHotelLocations] = useState<HotelWithLocation[]>([]);
+  const [hotelLocations, setHotelLocations] = useState<Hotel[]>([]);
 
   useEffect(() => {
-    const geocodeHotels = async () => {
-      const promises = hotels.map(async (hotel) => {
-        const address = `${hotel.address}, ${hotel.city}`;
-        const response = await fetch(`/api/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
-        const data = await response.json();
-        if (data && data.length > 0) {
-          return {
-            ...hotel,
-            latitude: parseFloat(data[0].lat),
-            longitude: parseFloat(data[0].lon),
-          };
-        }
-        return null;
-      });
-
-      const results = await Promise.all(promises);
-      setHotelLocations(results.filter((h): h is HotelWithLocation => h !== null));
-    };
-
-    if (hotels.length > 0) {
-      geocodeHotels();
-    }
+    // Filter hotels that have latitude and longitude directly
+    const hotelsWithCoords = hotels.filter(hotel => 
+      hotel.latitude !== undefined && hotel.latitude !== null &&
+      hotel.longitude !== undefined && hotel.longitude !== null
+    );
+    setHotelLocations(hotelsWithCoords);
   }, [hotels]);
 
   return (
@@ -59,14 +43,14 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ hotels }) => {
         Dashboard Overview
       </Typography>
       <Paper elevation={3} sx={{ height: '400px', width: '100%' }}>
-        {hotelLocations.length > 0 ? (
+        {hotelLocations.length > 0 && hotelLocations[0].latitude !== undefined && hotelLocations[0].longitude !== undefined ? (
           <MapContainer center={[hotelLocations[0].latitude, hotelLocations[0].longitude]} zoom={10} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
             {hotelLocations.map(hotel => (
-              <Marker key={hotel.id} position={[hotel.latitude, hotel.longitude]}>
+              <Marker key={hotel.id} position={[hotel.latitude!, hotel.longitude!]}>
                 <Popup>
                   {hotel.name}
                 </Popup>
@@ -75,7 +59,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ hotels }) => {
           </MapContainer>
         ) : (
           <Typography sx={{ textAlign: 'center', pt: 4 }}>
-            Cargando ubicaciones de hoteles...
+            No hay hoteles con coordenadas disponibles para mostrar en el mapa.
           </Typography>
         )}
       </Paper>

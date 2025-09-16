@@ -3,7 +3,7 @@ import { getFromLocalStorage, saveToLocalStorage } from './localStorage';
 
 // Interfaces
 export interface Person {
-  id: number;
+  id: string;
   name: string;
   email: string;
   dob: string;
@@ -41,11 +41,18 @@ export interface Hotel {
     name: string;
     imageUrl: string;
     status: 'Client' | 'Prospect';
-    address: string;
+    address?: string; // Make optional as we'll have granular fields
+    street?: string;
+    houseNumber?: string;
+    postcode?: string;
+    state?: string;
+    country?: string;
     city: string;
     generalManager: string;
     contact: string;
     email: string;
+    latitude?: number;
+    longitude?: number;
     contract_url?: string | null; // Added for contract link
 }
 
@@ -180,7 +187,7 @@ export const getHotels = async (): Promise<Hotel[]> => {
   let query = supabase.from('hoteles').select('*');
 
   if (profile && profile.role !== 'Admin') {
-    query = query.eq('user_id', user.id);
+    // query = query.eq('user_id', user.id); // Removed as user_id column does not exist in hoteles table
   }
 
   const { data, error } = await query;
@@ -453,3 +460,4 @@ export const deleteQAInspection = (inspectionId: number): void => {
   const updatedInspections = inspections.filter(insp => insp.id !== inspectionId);
   saveToLocalStorage(QA_INSPECTIONS_KEY, updatedInspections);
 };
+

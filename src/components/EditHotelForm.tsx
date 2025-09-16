@@ -40,11 +40,13 @@ const EditHotelForm: React.FC<EditHotelFormProps> = ({ open, onClose, onSave, ho
   const [inputValue, setInputValue] = useState('');
   const [options, setOptions] = useState<readonly PlaceSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [geolocationLoading, setGeolocationLoading] = useState(false);
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
 
   useEffect(() => {
     setFormData(hotel);
     if (hotel) {
-      setInputValue([hotel.address, hotel.city].filter(Boolean).join(', '));
+      setInputValue(hotel.address || ''); // Use hotel.address for initial input value
     }
   }, [hotel]);
 
@@ -84,6 +86,32 @@ const EditHotelForm: React.FC<EditHotelFormProps> = ({ open, onClose, onSave, ho
       active = false;
     };
   }, [inputValue, fetchSuggestions]);
+
+  const handleUseCurrentLocation = () => {
+    setGeolocationLoading(true);
+    setGeolocationError(null);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData((prev) => ({
+            ...(prev as Hotel),
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }));
+          setGeolocationLoading(false);
+        },
+        (error) => {
+          console.error('Error getting geolocation:', error);
+          setGeolocationError('No se pudo obtener la ubicación actual. Por favor, asegúrate de que los servicios de ubicación estén activados y que hayas dado permiso.');
+          setGeolocationLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setGeolocationError('La geolocalización no es compatible con este navegador.');
+      setGeolocationLoading(false);
+    }
+  };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (formData) {
@@ -134,13 +162,23 @@ const EditHotelForm: React.FC<EditHotelFormProps> = ({ open, onClose, onSave, ho
           onChange={(event: any, newValue: PlaceSuggestion | string | null) => {
             setOptions([]);
             if (typeof newValue === 'object' && newValue !== null) {
-              const street = newValue.address.road || '';
-              const number = newValue.address.house_number || '';
+              const street = newValue.address.road || newValue.address.footway || newValue.address.pedestrian || '';
+              const houseNumber = newValue.address.house_number || '';
+              const postcode = newValue.address.postcode || '';
+              const state = newValue.address.state || '';
+              const country = newValue.address.country || '';
               const city = newValue.address.city || newValue.address.town || newValue.address.village || '';
               setFormData({
                 ...formData,
-                address: `${street} ${number}`.trim(),
+                address: newValue.display_name, // Store full display name for general reference
+                street: street,
+                houseNumber: houseNumber,
+                postcode: postcode,
+                state: state,
+                country: country,
                 city: city,
+                latitude: parseFloat(newValue.lat), // Extract latitude
+                longitude: parseFloat(newValue.lon), // Extract longitude
               });
               setInputValue(newValue.display_name);
             }
@@ -165,6 +203,19 @@ const EditHotelForm: React.FC<EditHotelFormProps> = ({ open, onClose, onSave, ho
             />
           )}
         />
+        <Button
+          variant="outlined"
+          onClick={handleUseCurrentLocation}
+          disabled={geolocationLoading}
+          sx={{ mt: 1, mb: 1 }}
+        >
+          {geolocationLoading ? <CircularProgress size={24} /> : 'Usar Ubicación Actual'}
+        </Button>
+        {geolocationError && (
+          <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+            {geolocationError}
+          </Typography>
+        )}
         <TextField
           margin="dense"
           name="city"
@@ -175,6 +226,26 @@ const EditHotelForm: React.FC<EditHotelFormProps> = ({ open, onClose, onSave, ho
           value={formData.city}
           onChange={handleChange}
           // This field is now mainly for display, as it's set by the autocomplete
+        />
+        <TextField
+          margin="dense"
+          name="latitude"
+          label="Latitude"
+          type="number"
+          fullWidth
+          variant="outlined"
+          value={formData.latitude ?? ''}
+          onChange={handleChange}
+        />
+        <TextField
+          margin="dense"
+          name="longitude"
+          label="Longitude"
+          type="number"
+          fullWidth
+          variant="outlined"
+          value={formData.longitude ?? ''}
+          onChange={handleChange}
         />
         <TextField
           margin="dense"

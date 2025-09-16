@@ -10,6 +10,8 @@ export const getAttendance = async (): Promise<Attendance[]> => {
       id,
       check_in,
       check_out,
+      lodge_in, // Added
+      lodge_out, // Added
       status,
       correction_request,
       check_in_selfie_url,
@@ -19,7 +21,8 @@ export const getAttendance = async (): Promise<Attendance[]> => {
     `);
 
   if (error) {
-    console.error('Error fetching attendance:', error);
+    console.error('Error fetching attendance:', error.message);
+    console.error('Supabase error details:', error.details);
     return [];
   }
 
@@ -32,7 +35,7 @@ export const getAttendance = async (): Promise<Attendance[]> => {
     position: r.employees.position,
     date: new Date(r.check_in).toISOString().split('T')[0], // Extract date from check_in
     checkIn: new Date(r.check_in).toLocaleTimeString(),
-    checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString() : null,
+        checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString() : null,
     workHours: r.check_out ? (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000 : null,
     status: r.status as Attendance['status'],
     correctionRequest: r.correction_request,
@@ -123,4 +126,25 @@ export const requestCorrection = async (attendanceId: number, message: string): 
   if (error) {
     console.error('Error requesting correction:', error);
   }
+};
+
+export const uploadSelfie = async (imageDataUrl: string): Promise<string | null> => {
+  const base64Response = await fetch(imageDataUrl);
+  const blob = await base64Response.blob();
+  const filePath = `selfies/${Date.now()}.jpeg`; // Unique filename
+
+  const { data, error } = await supabase.storage
+    .from('employee-selfies') // Assuming a bucket named 'selfies' exists
+    .upload(filePath, blob, { contentType: 'image/jpeg' });
+
+  if (error) {
+    console.error('Error uploading selfie:', error);
+    return null;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('employee-selfies')
+    .getPublicUrl(filePath);
+
+  return publicUrlData.publicUrl;
 };

@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { getDisplayImage } from '../utils/imageUtils';
 import * as XLSX from 'xlsx';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import AddEmployeeDialog from './AddEmployeeDialog';
 
 const roles = ['Admin', 'Hotel Manager', 'Reclutador', 'QA Inspector', 'Contador', 'Trabajador'];
 
@@ -110,6 +111,7 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
   const { currentUser } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('');
   const [showBlacklistedOnly, setShowBlacklistedOnly] = useState<boolean>(false);
@@ -180,7 +182,10 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
     <Box sx={{ padding: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>Módulo de Colaboradores</Typography>
-        <Button variant="contained" startIcon={<FileDownloadIcon />} onClick={handleExport} disabled={filteredEmployees.length === 0}>Exportar a Excel</Button>
+        <Box>
+          <Button variant="contained" startIcon={<FileDownloadIcon />} onClick={handleExport} disabled={filteredEmployees.length === 0} sx={{ mr: 1 }}>Exportar a Excel</Button>
+          <Button variant="contained" color="primary" onClick={() => setAddEmployeeDialogOpen(true)}>Añadir Empleado</Button>
+        </Box>
       </Box>
       
       <Box sx={{ mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -198,10 +203,10 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
         {filteredEmployees.map((employee) => (
           <Grid key={employee.id} item xs={12} sm={6} md={4} lg={2}>
             <Card sx={{ textAlign: 'center', backgroundColor: employee.isBlacklisted ? '#424242' : '#ffffff', color: employee.isBlacklisted ? '#ffffff' : '#000000' }}>
-              <Box sx={{ pt: 3 }}><Avatar alt={`Foto de ${employee.name}`} src={getDisplayImage(employee.imageUrl, 'person')} sx={{ width: 150, height: 150, margin: 'auto' }} /></Box>
+              <Box sx={{ pt: 3 }}><Avatar alt={`Foto de ${employee.name}`} src={getDisplayImage(employee.imageUrl, 'person')} sx={{ width: 100, height: 100, margin: 'auto' }} /></Box>
               <CardContent>
-                <Typography gutterBottom variant="h5" component="div">{employee.name}</Typography>
-                <Typography variant="body1" color="text.primary" component="p">{employee.position}</Typography>
+                <Typography gutterBottom variant="h6" component="div">{employee.name}</Typography>
+                <Typography variant="body2" color="text.primary" component="p">{employee.position}</Typography>
                 <Typography variant="body2" color="text.secondary">**Estado:** {employee.status}</Typography>
                 <Typography variant="body2" color="text.secondary">**Rol:** {employee.role}</Typography>
                 <Typography variant="body2" color="text.secondary">{employee.city}, {employee.country}</Typography>
@@ -220,6 +225,7 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
       <EditEmployeeDialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} employee={selectedEmployee} onSave={handleSaveEmployee} />
       <AssignUniformDialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} employee={selectedEmployee} onAssign={handleAssignUniform} />
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose}><Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
+      <AddEmployeeDialog open={addEmployeeDialogOpen} onClose={() => setAddEmployeeDialogOpen(false)} onSave={onRefreshEmployees} />
     </Box>
   );
 }

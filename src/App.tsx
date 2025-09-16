@@ -26,6 +26,7 @@ import NominaDashboard from './components/NominaDashboard';
 import InventoryDashboard from './components/InventoryDashboard';
 import QADashboard from './components/QADashboard';
 import ProspectDashboard from './components/ProspectDashboard';
+import ChangePasswordForm from './components/ChangePasswordForm';
 import { useAuth } from './context/AuthContext';
 import { useNotification } from './context/NotificationContext';
 import { QAProvider } from './context/QAContext';
@@ -134,6 +135,11 @@ function App() {
   
   const handleProfile = () => {
     setSelectedModule('Profile');
+    handleUserMenuClose();
+  };
+
+  const handleChangePassword = () => {
+    setSelectedModule('ChangePassword');
     handleUserMenuClose();
   };
 
@@ -313,6 +319,8 @@ function App() {
         return <EmpleadoDashboard />;
       case 'Profile':
         return <UserProfile />;
+      case 'ChangePassword':
+        return <ChangePasswordForm />;
       case 'Permissions':
         return <PermissionsDashboard />;
       case 'Nómina':
@@ -353,6 +361,7 @@ function App() {
               onClose={handleUserMenuClose}
             >
               <MenuItem onClick={handleProfile}>Profile</MenuItem>
+              <MenuItem onClick={handleChangePassword}>Cambiar Contraseña</MenuItem>
               {currentUser.role === 'Admin' && (
                 <MenuItem onClick={handlePermissions}>Permissions</MenuItem>
               )}

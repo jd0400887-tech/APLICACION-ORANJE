@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Button, Container, Typography, Paper, Snackbar, Alert, Card, CardContent, Box, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Avatar, Stack, IconButton, useTheme,
@@ -13,7 +13,7 @@ import WorkIcon from '@mui/icons-material/Work';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import EditIcon from '@mui/icons-material/Edit';
 import { useAuth } from '../context/AuthContext';
-import { getAttendance, checkIn, checkOut, Attendance, requestCorrection } from '../data/attendance';
+import { getAttendance, checkIn, checkOut, Attendance, requestCorrection, uploadSelfie } from '../data/attendance';
 import { getHotels, Hotel } from '../data/database';
 import SelfieCamera from './SelfieCamera';
 
@@ -102,26 +102,32 @@ const EmpleadoDashboard: React.FC = () => {
 
   useEffect(() => {
     if (assignedHotel) {
-      const geocodeHotel = async () => {
-        const address = `${assignedHotel.address}, ${assignedHotel.city}`;
-        try {
-          const response = await fetch(`/api/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const data = await response.json();
-          if (data && data.length > 0) {
-            setHotelLocation({ latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) });
-            setLocationError(null);
-          } else {
-            setLocationError('No se pudo encontrar la ubicación del hotel.');
+      if (assignedHotel.latitude !== undefined && assignedHotel.longitude !== undefined) {
+        setHotelLocation({ latitude: assignedHotel.latitude, longitude: assignedHotel.longitude });
+        setLocationError(null);
+      } else {
+        // Fallback to geocoding if coordinates are not directly available
+        const geocodeHotel = async () => {
+          const address = `${assignedHotel.address}, ${assignedHotel.city}`;
+          try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (data && data.length > 0) {
+              setHotelLocation({ latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) });
+              setLocationError(null);
+            } else {
+              setLocationError('No se pudo encontrar la ubicación del hotel.');
+              setHotelLocation(null);
+            }
+          } catch (error) {
+            console.error("Error geocoding hotel address:", error);
+            setLocationError(`Error al geocodificar: ${error instanceof Error ? error.message : String(error)}`);
             setHotelLocation(null);
           }
-        } catch (error) {
-          console.error("Error geocoding hotel address:", error);
-          setLocationError(`Error al geocodificar: ${error instanceof Error ? error.message : String(error)}`);
-          setHotelLocation(null);
-        }
-      };
-      geocodeHotel();
+        };
+        geocodeHotel();
+      }
     }
   }, [assignedHotel]);
 
@@ -157,6 +163,7 @@ const EmpleadoDashboard: React.FC = () => {
       setSnackbar({ open: true, message: 'No cumples los requisitos para hacer check-in.', severity: 'error' });
       return;
     }
+    console.log('handleCheckIn: Setting isCameraOpen to true'); // Added for debugging
     setIsCameraOpen(true);
   };
 
@@ -164,9 +171,14 @@ const EmpleadoDashboard: React.FC = () => {
     setIsCameraOpen(false);
     if (!currentUser || !assignedHotel) return;
 
-    // For now, we assume the selfie is a base64 string. We will just pass it as a placeholder.
-    // A real implementation would upload this to storage first.
-    const newCheckInId = await checkIn(currentUser.id, assignedHotel.id, 'placeholder_selfie_url');
+    const selfieUrl = await uploadSelfie(selfie);
+
+    if (!selfieUrl) {
+      setSnackbar({ open: true, message: 'Error al subir la selfie.', severity: 'error' });
+      return;
+    }
+
+    const newCheckInId = await checkIn(currentUser.id, assignedHotel.id, selfieUrl);
     if (newCheckInId) {
       setLastCheckInId(newCheckInId);
       setSnackbar({ open: true, message: 'Check-in registrado con éxito', severity: 'success' });
@@ -306,7 +318,7 @@ const EmpleadoDashboard: React.FC = () => {
       <Box><Stack spacing={isMobile ? 2 : 3}>{renderContent()}</Stack></Box>
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}><DialogTitle>Solicitar Corrección</DialogTitle><DialogContent><DialogContentText>Describe el problema con este registro de asistencia. Tu supervisor revisará tu solicitud.</DialogContentText><TextField autoFocus margin="dense" id="correction-message" label="Mensaje" type="text" fullWidth variant="standard" value={correctionMessage} onChange={(e) => setCorrectionMessage(e.target.value)} multiline rows={4} /></DialogContent><DialogActions><Button onClick={handleCloseCorrectionModal}>Cancelar</Button><Button onClick={handleSubmitCorrection}>Enviar Solicitud</Button></DialogActions></Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}><Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
-      <SelfieCamera open={isCameraOpen} onClose={() => setIsCameraOpen(false)} onPictureTaken={handlePictureTaken} />
+      <SelfieCamera open={isCameraOpen} onClose={useCallback(() => setIsCameraOpen(false), [])} onPictureTaken={handlePictureTaken} />
       <AppBar position="fixed" color="primary" sx={{ top: 'auto', bottom: 0 }}><BottomNavigation showLabels value={selectedTab} onChange={(event, newValue) => { setSelectedTab(newValue); }} sx={{ backgroundColor: theme.palette.primary.main }}>
           <BottomNavigationAction label="Home" icon={<HomeIcon />} sx={{ color: 'white' }} />
           <BottomNavigationAction label="Registros" icon={<WorkIcon />} sx={{ color: 'white' }} />
