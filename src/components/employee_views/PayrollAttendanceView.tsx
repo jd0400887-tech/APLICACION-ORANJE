@@ -130,89 +130,93 @@ const PayrollAttendanceView: React.FC<PayrollAttendanceViewProps> = ({
   }, [filteredRecords]);
 
   return (
-    <Box sx={{ p: 2 }}>
-      {/* Summary Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
-          <Card elevation={3} sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6">Resumen de Horas</Typography>
-              <Typography variant="h4">{formatDuration(totalHours)}</Typography>
-            </CardContent>
-          </Card>
+    <Box sx={{ p: 2, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ maxWidth: 800, width: '100%', margin: '0 auto' }}> {/* Centered wrapper */}
+        {/* Summary Cards */}
+        <Grid container spacing={2} sx={{ mb: 3, width: '100%' }}>
+          <Grid item xs={12} md={6}>
+            <Card elevation={3} sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6">Resumen de Horas</Typography>
+                <Typography variant="h4">{formatDuration(totalHours)}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Card elevation={3} sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6">Estadísticas</Typography>
+                <Typography variant="body1" sx={{ mt: 2 }}>
+                  <strong>Días trabajados:</strong> {daysWorked}
+                </Typography>
+                <Typography variant="body1">
+                  <strong>Entrada promedio:</strong> {averageCheckInTime}
+                </Typography>
+                <Typography variant="body1">
+                  <strong>Jornada promedio:</strong> {averageWorkDuration}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-        <Grid item xs={12} md={6}>
-          <Card elevation={3} sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6">Estadísticas</Typography>
-              <Typography variant="body1" sx={{ mt: 2 }}>
-                <strong>Días trabajados:</strong> {daysWorked}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Entrada promedio:</strong> {averageCheckInTime}
-              </Typography>
-              <Typography variant="body1">
-                <strong>Jornada promedio:</strong> {averageWorkDuration}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
-      {/* Attendance History Table */}
-      <Paper elevation={3} sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
-          <Typography variant="h6">Historial de Registros</Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              type="date"
-              label="Fecha de inicio"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-            />
-            <TextField
-              type="date"
-              label="Fecha de fin"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-            />
+        {/* Attendance History Table */}
+        <Paper elevation={3} sx={{ p: 2, width: '100%' }}>
+          <Typography variant="h6" gutterBottom>Historial de Registros</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
+            <Typography variant="h6">Historial de Registros</Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                type="date"
+                label="Fecha de inicio"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+              />
+              <TextField
+                type="date"
+                label="Fecha de fin"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+              />
+            </Box>
           </Box>
-        </Box>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Entrada</TableCell>
-                <TableCell>Salida</TableCell>
-                <TableCell>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredRecords.map((rec) => (
-                <TableRow key={rec.id}>
-                  <TableCell>{new Date(rec.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{rec.checkIn}</TableCell>
-                  <TableCell>{rec.checkOut || 'En curso'}</TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenCorrectionModal(rec)}
-                      disabled={rec.status === 'pending_review'}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  </TableCell>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Fecha</TableCell>
+                  <TableCell>Entrada</TableCell>
+                  <TableCell>Salida</TableCell>
+                  <TableCell>Acciones</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
+              </TableHead>
+              <TableBody>
+                {filteredRecords.map((rec) => (
+                  <TableRow key={rec.id}>
+                    <TableCell>{new Date(rec.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{rec.checkIn}</TableCell>
+                    <TableCell>{rec.checkOut || 'En curso'}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenCorrectionModal(rec)}
+                        disabled={rec.status === 'pending_review'}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </Table>
         </TableContainer>
-      </Paper>
+        </Paper>
+      </div>
 
       {/* Correction Request Dialog */}
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}>

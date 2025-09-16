@@ -269,32 +269,32 @@ const EmpleadoDashboard: React.FC = () => {
         return (
           <>
             {assignedHotel && (
-              <Card elevation={3} sx={{ mb: 3 }}>
-                <CardMedia component="img" height="140" image={assignedHotel.imageUrl} alt="Imagen del Hotel" />
-                <CardContent sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>{assignedHotel.name}</Typography>
-                  <Typography variant="body2">{assignedHotel.address}, {assignedHotel.city}</Typography>
+              <Card elevation={3} sx={{ mb: 1, width: '100%', borderRadius: '20px' }}>
+                {/* <CardMedia component="img" height="140" image={assignedHotel.imageUrl} alt="Imagen del Hotel" /> */}
+                <CardContent sx={{ backgroundColor: theme.palette.primary.main, color: 'white', p: 1 }}>
+                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{assignedHotel.name}</Typography>
+                  <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{assignedHotel.address}, {assignedHotel.city}</Typography>
                 </CardContent>
               </Card>
             )}
             {currentUser && (
-              <Card elevation={3} sx={{ mb: 3, borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
-                <CardContent sx={{ p: isMobile ? 2 : 3 }}><Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap' }}><Avatar src={currentUser.imageUrl} sx={{ width: 60, height: 60, mr: 2 }} /><Box><Typography variant="h6" component="div">{currentUser.name}</Typography><Typography variant="body1" color="text.secondary">{currentUser.role} - {currentUser.position}</Typography></Box></Box></CardContent>
+              <Card elevation={3} sx={{ mb: 1, width: '100%', borderRadius: '20px', borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}><Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap' }}><Avatar src={currentUser.imageUrl} sx={{ width: 60, height: 60, mr: 2 }} /><Box>                  <Typography variant="h6" component="div" sx={{ wordBreak: 'break-word' }}>{currentUser.name}</Typography><Typography variant="body1" color="text.secondary" sx={{ wordBreak: 'break-word' }}>{currentUser.role} - {currentUser.position}</Typography></Box></Box></CardContent>
               </Card>
             )}
-            <Paper elevation={3} sx={{ p: 2, borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
-              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>Registro de Jornada</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
-              <Box sx={{ mb: 2 }}>{renderLocationStatus()}</Box>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
+                        <Paper elevation={3} sx={{ mb: 1, borderRadius: '20px', borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid', mx: 'auto' }}>
+              <Typography variant="h6" align="center" sx={{ color: theme.palette.primary.main, px: 2, pt: 2 }}>Registro de Jornada</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5, flexWrap: 'wrap', px: 2 }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
+              <Box sx={{ mb: 0.5, px: 2 }}>{renderLocationStatus()}</Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, px: 2, pb: 2 }}><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
             </Paper>
           </>
         );
       case 1: // Registros
         return (
           <>
-            <Grid container spacing={2}><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%' }}><CardContent><Typography variant="h6">Resumen de Horas</Typography><Typography variant="h4">{formatDuration(totalHours)}</Typography></CardContent></Card></Grid><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%' }}><CardContent><Typography variant="h6">Estadísticas</Typography><Typography variant="body1" sx={{ mt: 2 }}><strong>Días trabajados:</strong> {daysWorked}</Typography><Typography variant="body1"><strong>Entrada promedio:</strong> {averageCheckInTime}</Typography><Typography variant="body1"><strong>Jornada promedio:</strong> {averageWorkDuration}</Typography></CardContent></Card></Grid></Grid>
-            <Paper elevation={3} sx={{ p: 2, mt: 3 }}>
+            <Grid container spacing={2}><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%', borderRadius: '20px' }}><CardContent><Typography variant="h6">Resumen de Horas</Typography><Typography variant="h4">{formatDuration(totalHours)}</Typography></CardContent></Card></Grid><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%', borderRadius: '20px' }}><CardContent><Typography variant="h6">Estadísticas</Typography><Typography variant="body1" sx={{ mt: 2 }}><strong>Días trabajados:</strong> {daysWorked}</Typography><Typography variant="body1"><strong>Entrada promedio:</strong> {averageCheckInTime}</Typography><Typography variant="body1"><strong>Jornada promedio:</strong> {averageWorkDuration}</Typography></CardContent></Card></Grid></Grid>
+            <Paper elevation={3} sx={{ p: 2, mt: 3, borderRadius: '20px' }}>
               <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}><Typography variant="h6">Historial de Registros</Typography><Box sx={{ display: 'flex', gap: 2 }}><TextField type="date" label="Fecha de inicio" value={startDate} onChange={(e) => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /><TextField type="date" label="Fecha de fin" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Box></Box>
               <TableContainer sx={{ overflowX: 'auto' }}><Table size="small"><TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Entrada</TableCell><TableCell>Salida</TableCell><TableCell>Acciones</TableCell></TableRow></TableHead><TableBody>{filteredRecords.map((rec) => (<TableRow key={rec.id}><TableCell>{new Date(rec.date).toLocaleDateString()}</TableCell><TableCell>{rec.checkIn}</TableCell><TableCell>{rec.checkOut || 'En curso'}</TableCell><TableCell><IconButton size="small" onClick={() => handleOpenCorrectionModal(rec)} disabled={rec.status === 'pending_review'}><EditIcon /></IconButton></TableCell></TableRow>))}</TableBody></Table></TableContainer>
             </Paper>
@@ -302,7 +302,7 @@ const EmpleadoDashboard: React.FC = () => {
         );
       case 2: // Soporte
         return (
-          <Paper elevation={3} sx={{ p: 2 }}>
+          <Paper elevation={3} sx={{ p: 2, borderRadius: '20px' }}>
             <Typography variant="h6" gutterBottom>Soporte Técnico</Typography>
             <TextField label="Describe tu problema" multiline rows={6} fullWidth variant="outlined" sx={{ mb: 2 }} value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} />
             <Button variant="contained" color="primary" onClick={handleSubmitSupport}>Enviar Solicitud</Button>
@@ -313,9 +313,21 @@ const EmpleadoDashboard: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 3, pb: isMobile ? '80px' : 3, overflowY: 'auto' }}>
+    <Container
+      maxWidth="md"
+      sx={{
+        py: isMobile ? 2 : 3,
+        pb: isMobile ? '80px' : 3,
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center', // Center horizontally
+        justifyContent: 'center', // Center vertically
+        minHeight: '100vh', // Ensure it takes full viewport height
+      }}
+    >
       <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom align="center" sx={{ mb: 4 }}>Portal del Empleado</Typography>
-      <Box><Stack spacing={isMobile ? 2 : 3}>{renderContent()}</Stack></Box>
+      <Box><Stack spacing={isMobile ? 1 : 2} alignItems="center">{renderContent()}</Stack></Box>
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}><DialogTitle>Solicitar Corrección</DialogTitle><DialogContent><DialogContentText>Describe el problema con este registro de asistencia. Tu supervisor revisará tu solicitud.</DialogContentText><TextField autoFocus margin="dense" id="correction-message" label="Mensaje" type="text" fullWidth variant="standard" value={correctionMessage} onChange={(e) => setCorrectionMessage(e.target.value)} multiline rows={4} /></DialogContent><DialogActions><Button onClick={handleCloseCorrectionModal}>Cancelar</Button><Button onClick={handleSubmitCorrection}>Enviar Solicitud</Button></DialogActions></Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}><Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
       <SelfieCamera open={isCameraOpen} onClose={useCallback(() => setIsCameraOpen(false), [])} onPictureTaken={handlePictureTaken} />
