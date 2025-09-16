@@ -313,7 +313,7 @@ const EmpleadoDashboard: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 3, pb: isMobile ? '80px' : 3 }}>
+    <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 3, pb: isMobile ? '80px' : 3, overflowY: 'auto' }}>
       <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom align="center" sx={{ mb: 4 }}>Portal del Empleado</Typography>
       <Box><Stack spacing={isMobile ? 2 : 3}>{renderContent()}</Stack></Box>
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}><DialogTitle>Solicitar Corrección</DialogTitle><DialogContent><DialogContentText>Describe el problema con este registro de asistencia. Tu supervisor revisará tu solicitud.</DialogContentText><TextField autoFocus margin="dense" id="correction-message" label="Mensaje" type="text" fullWidth variant="standard" value={correctionMessage} onChange={(e) => setCorrectionMessage(e.target.value)} multiline rows={4} /></DialogContent><DialogActions><Button onClick={handleCloseCorrectionModal}>Cancelar</Button><Button onClick={handleSubmitCorrection}>Enviar Solicitud</Button></DialogActions></Dialog>
