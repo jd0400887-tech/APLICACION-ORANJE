@@ -3,7 +3,7 @@ import {
   Button, Container, Typography, Paper, Snackbar, Alert, Card, CardContent, Box, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Avatar, Stack, IconButton, useTheme,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress, useMediaQuery, AppBar, Toolbar,
-  BottomNavigation, BottomNavigationAction, CardMedia, Fab
+  BottomNavigation, BottomNavigationAction, CardMedia, Fab, Tabs, Tab
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/LoginOutlined';
 import LogoutIcon from '@mui/icons-material/LogoutOutlined';
@@ -182,7 +182,24 @@ const EmpleadoDashboard: React.FC = () => {
     if (newCheckInId) {
       setLastCheckInId(newCheckInId);
       setSnackbar({ open: true, message: 'Check-in registrado con éxito', severity: 'success' });
-      fetchAttendance();
+      
+      // Manually update the attendance records to provide immediate feedback
+      const newRecord: Attendance = {
+        id: newCheckInId,
+        employeeId: currentUser.id,
+        employeeName: currentUser.name,
+        hotelName: assignedHotel.name,
+        position: currentUser.position,
+        date: new Date().toISOString().split('T')[0],
+        checkIn: new Date().toLocaleTimeString(),
+        checkOut: null,
+        workHours: null,
+        status: 'ok',
+        correctionRequest: null,
+        checkInSelfie: selfieUrl,
+      };
+      setAttendanceRecords([newRecord, ...attendanceRecords]);
+
     } else {
       setSnackbar({ open: true, message: 'Ya tienes un check-in abierto hoy.', severity: 'warning' });
     }
@@ -383,25 +400,35 @@ const EmpleadoDashboard: React.FC = () => {
       maxWidth="md"
       sx={{
         py: isMobile ? 2 : 3,
-        pb: isMobile ? '80px' : 3,
-        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center', // Center horizontally
-        justifyContent: 'center', // Center vertically
-        minHeight: '100vh', // Ensure it takes full viewport height
+        minHeight: '100vh',
       }}
     >
-      <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom align="center" sx={{ mb: 4 }}>Portal del Empleado</Typography>
-      <Box><Stack spacing={isMobile ? 1 : 2} alignItems="center">{renderContent()}</Stack></Box>
+      <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom align="center" sx={{ mb: 2 }}>Portal del Empleado</Typography>
+      
+      <AppBar position="static" color="transparent" elevation={0}>
+        <Tabs
+          value={selectedTab}
+          onChange={(event, newValue) => setSelectedTab(newValue)}
+          aria-label="navigation tabs"
+          variant="fullWidth"
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="Home" icon={<HomeIcon />} iconPosition="start" />
+          <Tab label="Registros" icon={<WorkIcon />} iconPosition="start" />
+          <Tab label="Soporte" icon={<SupportAgentIcon />} iconPosition="start" />
+        </Tabs>
+      </AppBar>
+
+      <Box sx={{ width: '100%', flexGrow: 1, mt: 2 }}>
+        {renderContent()}
+      </Box>
+      
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}><DialogTitle>Solicitar Corrección</DialogTitle><DialogContent><DialogContentText>Describe el problema con este registro de asistencia. Tu supervisor revisará tu solicitud.</DialogContentText><TextField autoFocus margin="dense" id="correction-message" label="Mensaje" type="text" fullWidth variant="standard" value={correctionMessage} onChange={(e) => setCorrectionMessage(e.target.value)} multiline rows={4} /></DialogContent><DialogActions><Button onClick={handleCloseCorrectionModal}>Cancelar</Button><Button onClick={handleSubmitCorrection}>Enviar Solicitud</Button></DialogActions></Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}><Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
       <SelfieCamera open={isCameraOpen} onClose={useCallback(() => setIsCameraOpen(false), [])} onPictureTaken={handlePictureTaken} />
-      <AppBar position="fixed" color="primary" sx={{ top: 'auto', bottom: 0 }}><BottomNavigation showLabels value={selectedTab} onChange={(event, newValue) => { setSelectedTab(newValue); }} sx={{ backgroundColor: theme.palette.primary.main }}>
-          <BottomNavigationAction label="Home" icon={<HomeIcon />} sx={{ color: 'white' }} />
-          <BottomNavigationAction label="Registros" icon={<WorkIcon />} sx={{ color: 'white' }} />
-          <BottomNavigationAction label="Soporte" icon={<SupportAgentIcon />} sx={{ color: 'white' }} />
-      </BottomNavigation></AppBar>
     </Container>
   );
 };
