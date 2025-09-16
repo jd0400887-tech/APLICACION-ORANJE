@@ -3,7 +3,7 @@ import {
   Button, Container, Typography, Paper, Snackbar, Alert, Card, CardContent, Box, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Avatar, Stack, IconButton, useTheme,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress, useMediaQuery, AppBar, Toolbar,
-  BottomNavigation, BottomNavigationAction, CardMedia, Fab, Tabs, Tab
+  BottomNavigation, BottomNavigationAction, CardMedia, Fab
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/LoginOutlined';
 import LogoutIcon from '@mui/icons-material/LogoutOutlined';
@@ -12,9 +12,10 @@ import HomeIcon from '@mui/icons-material/Home';
 import WorkIcon from '@mui/icons-material/Work';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import EditIcon from '@mui/icons-material/Edit';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '../context/AuthContext';
 import { getAttendance, checkIn, checkOut, Attendance, requestCorrection, uploadSelfie } from '../data/attendance';
-import { getHotels, Hotel } from '../data/database';
+import { getHotels, Hotel, uploadProfilePicture, updateEmployee } from '../data/database';
 import SelfieCamera from './SelfieCamera';
 
 // Helper functions (getDistance, formatDuration) remain the same
@@ -39,7 +40,12 @@ const formatDuration = (milliseconds: number) => {
 const EmpleadoDashboard: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { currentUser } = useAuth();
+  const { currentUser: authUser, updateCurrentUser } = useAuth();
+  const [currentUser, setCurrentUser] = useState(authUser);
+
+  useEffect(() => {
+    setCurrentUser(authUser);
+  }, [authUser]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastCheckInId, setLastCheckInId] = useState<number | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
@@ -242,6 +248,23 @@ const EmpleadoDashboard: React.FC = () => {
     setSupportMessage("");
   };
 
+  const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    const newImageUrl = await uploadProfilePicture(file);
+
+    if (newImageUrl) {
+      const updatedEmployee = { ...currentUser, imageUrl: newImageUrl };
+      await updateEmployee(updatedEmployee);
+      updateCurrentUser(updatedEmployee);
+      setCurrentUser(updatedEmployee);
+      setSnackbar({ open: true, message: 'Foto de perfil actualizada', severity: 'success' });
+    } else {
+      setSnackbar({ open: true, message: 'Error al subir la imagen', severity: 'error' });
+    }
+  };
+
   const filteredRecords = attendanceRecords.filter(rec => rec.date >= startDate && rec.date <= endDate);
 
   const { totalHours, daysWorked, averageCheckInTime, averageWorkDuration } = useMemo(() => {
@@ -286,7 +309,7 @@ const EmpleadoDashboard: React.FC = () => {
         return (
           <Box sx={{
             width: '100%',
-            height: 'calc(100vh - 120px)', // Adjust height as needed, considering app bar and bottom nav
+            flexGrow: 1,
             position: 'relative',
             overflow: 'hidden',
             bgcolor: '#f0f0f0', // Gray background
@@ -315,15 +338,34 @@ const EmpleadoDashboard: React.FC = () => {
               pt: 4,
             }}>
               {currentUser && (
-                <Avatar
-                  src={currentUser.imageUrl}
-                  sx={{
-                    width: isMobile ? 80 : 120,
-                    height: isMobile ? 80 : 120,
-                    mb: 1,
-                    border: '4px solid white'
-                  }}
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <Avatar
+                    key={currentUser.imageUrl}
+                    src={currentUser.imageUrl}
+                    sx={{
+                      width: isMobile ? 80 : 120,
+                      height: isMobile ? 80 : 120,
+                      mb: 1,
+                      border: '4px solid white'
+                    }}
+                  />
+                  <IconButton
+                    aria-label="upload picture"
+                    component="label"
+                    sx={{
+                      position: 'absolute',
+                      bottom: 8,
+                      right: 8,
+                      backgroundColor: 'white',
+                      '&:hover': {
+                        backgroundColor: 'white',
+                      },
+                    }}
+                  >
+                    <EditIcon />
+                    <input hidden accept="image/*" type="file" onChange={handleProfilePictureChange} />
+                  </IconButton>
+                </Box>
               )}
               {assignedHotel && (
                 <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ color: 'white', fontWeight: 'bold' }}>
@@ -371,11 +413,38 @@ const EmpleadoDashboard: React.FC = () => {
                 </Box>
               </Fab>
             </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, pb: 4, position: 'relative', zIndex: 1 }}>
+              <Fab
+                color="primary"
+                aria-label="mis-registros"
+                onClick={() => setSelectedTab(1)}
+                sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <WorkIcon />
+                  <Typography variant="caption">Registros</Typography>
+                </Box>
+              </Fab>
+              <Fab
+                color="primary"
+                aria-label="soporte"
+                onClick={() => setSelectedTab(2)}
+                sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <SupportAgentIcon />
+                  <Typography variant="caption">Soporte</Typography>
+                </Box>
+              </Fab>
+            </Box>
           </Box>
         );
       case 1: // Registros
         return (
           <>
+            <Fab color="primary" aria-label="back" onClick={() => setSelectedTab(0)} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+              <ArrowBackIcon />
+            </Fab>
             <Grid container spacing={2}><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%', borderRadius: '20px' }}><CardContent><Typography variant="h6">Resumen de Horas</Typography><Typography variant="h4">{formatDuration(totalHours)}</Typography></CardContent></Card></Grid><Grid item xs={12} md={6}><Card elevation={3} sx={{ height: '100%', borderRadius: '20px' }}><CardContent><Typography variant="h6">Estadísticas</Typography><Typography variant="body1" sx={{ mt: 2 }}><strong>Días trabajados:</strong> {daysWorked}</Typography><Typography variant="body1"><strong>Entrada promedio:</strong> {averageCheckInTime}</Typography><Typography variant="body1"><strong>Jornada promedio:</strong> {averageWorkDuration}</Typography></CardContent></Card></Grid></Grid>
             <Paper elevation={3} sx={{ p: 2, mt: 3, borderRadius: '20px' }}>
               <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}><Typography variant="h6">Historial de Registros</Typography><Box sx={{ display: 'flex', gap: 2 }}><TextField type="date" label="Fecha de inicio" value={startDate} onChange={(e) => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /><TextField type="date" label="Fecha de fin" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Box></Box>
@@ -385,11 +454,16 @@ const EmpleadoDashboard: React.FC = () => {
         );
       case 2: // Soporte
         return (
-          <Paper elevation={3} sx={{ p: 2, borderRadius: '20px' }}>
-            <Typography variant="h6" gutterBottom>Soporte Técnico</Typography>
-            <TextField label="Describe tu problema" multiline rows={6} fullWidth variant="outlined" sx={{ mb: 2 }} value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} />
-            <Button variant="contained" color="primary" onClick={handleSubmitSupport}>Enviar Solicitud</Button>
-          </Paper>
+          <>
+            <Fab color="primary" aria-label="back" onClick={() => setSelectedTab(0)} sx={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+              <ArrowBackIcon />
+            </Fab>
+            <Paper elevation={3} sx={{ p: 2, borderRadius: '20px' }}>
+              <Typography variant="h6" gutterBottom>Soporte Técnico</Typography>
+              <TextField label="Describe tu problema" multiline rows={6} fullWidth variant="outlined" sx={{ mb: 2 }} value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} />
+              <Button variant="contained" color="primary" onClick={handleSubmitSupport}>Enviar Solicitud</Button>
+            </Paper>
+          </>
         );
       default: return null;
     }
@@ -397,7 +471,7 @@ const EmpleadoDashboard: React.FC = () => {
 
   return (
     <Container
-      maxWidth="md"
+      disableGutters
       sx={{
         py: isMobile ? 2 : 3,
         display: 'flex',
@@ -407,22 +481,7 @@ const EmpleadoDashboard: React.FC = () => {
     >
       <Typography variant={isMobile ? 'h5' : 'h4'} gutterBottom align="center" sx={{ mb: 2 }}>Portal del Empleado</Typography>
       
-      <AppBar position="static" color="transparent" elevation={0}>
-        <Tabs
-          value={selectedTab}
-          onChange={(event, newValue) => setSelectedTab(newValue)}
-          aria-label="navigation tabs"
-          variant="fullWidth"
-          indicatorColor="primary"
-          textColor="primary"
-        >
-          <Tab label="Home" icon={<HomeIcon />} iconPosition="start" />
-          <Tab label="Registros" icon={<WorkIcon />} iconPosition="start" />
-          <Tab label="Soporte" icon={<SupportAgentIcon />} iconPosition="start" />
-        </Tabs>
-      </AppBar>
-
-      <Box sx={{ width: '100%', flexGrow: 1, mt: 2 }}>
+      <Box sx={{ width: '100%', flexGrow: 1, mt: 2, position: 'relative' }}>
         {renderContent()}
       </Box>
       
