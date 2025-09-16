@@ -333,10 +333,13 @@ export const updateHotel = async (updatedHotel: Hotel): Promise<Hotel | null> =>
   return data as Hotel;
 };
 
-export const updateEmployee = async (updatedEmployeeData: Employee): Promise<void> => {
+export const updateEmployee = async (updatedEmployeeData: any): Promise<void> => {
+  const { hotel, hoteles, imageUrl, ...rest } = updatedEmployeeData;
+  const updateData = { ...rest, image_url: imageUrl };
+
   const { error } = await supabase
     .from('employees')
-    .update(updatedEmployeeData)
+    .update(updateData)
     .eq('id', updatedEmployeeData.id);
 
   if (error) {
@@ -400,6 +403,25 @@ export const updateHotelContractUrl = async (hotelId: number, contractUrl: strin
   if (error) {
     console.error('Error updating hotel with contract URL:', error);
   }
+};
+
+export export const uploadProfilePicture = async (file: File): Promise<string | null> => {
+  const filePath = `selfies/${Date.now()}-${file.name}`;
+
+  const { error } = await supabase.storage
+    .from('employee-selfies')
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+
+  if (error) {
+    console.error('Error uploading profile picture:', error);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('employee-selfies')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
 };
 
 // --- Unmigrated Functions ---

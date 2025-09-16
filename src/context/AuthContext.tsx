@@ -4,7 +4,8 @@ import { supabase } from '../supabaseClient';
 
 interface AuthContextType {
   currentUser: Employee | null;
-  login: (email: string) => Promise<boolean>; // Return a promise
+  updateCurrentUser: (user: Employee) => void;
+  login: (email: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -24,7 +25,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setCurrentUser(user);
         } else {
           console.warn('AuthContext: Supabase user found, but no matching employee.');
-          // Optionally, handle this case, e.g., log out the user or redirect to an error page
         }
       }
       setLoading(false);
@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fetchUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      fetchUser(); // Re-fetch user on auth state change
+      fetchUser();
     });
 
     return () => {
@@ -42,33 +42,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string): Promise<boolean> => {
-    console.log('AuthContext: login function called with email:', email);
-    // This login function might be redundant if Supabase handles the actual login.
-    // However, if it's used for a custom login flow, it should still find the employee.
     const employees = await getEmployees();
     const user = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase());
 
     if (user) {
       setCurrentUser(user);
-      console.log('AuthContext: setCurrentUser called with:', user);
       return true;
     }
-    console.log('AuthContext: User not found in employees list.');
     return false;
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
-    console.log('AuthContext: User logged out.');
+  };
+
+  const updateCurrentUser = (user: Employee) => {
+    setCurrentUser(user);
   };
 
   if (loading) {
-    return <div>Loading authentication...</div>; // Or a proper loading spinner
+    return <div>Loading authentication...</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, updateCurrentUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

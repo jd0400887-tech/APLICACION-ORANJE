@@ -10,8 +10,8 @@ export const getAttendance = async (): Promise<Attendance[]> => {
       id,
       check_in,
       check_out,
-      lodge_in, // Added
-      lodge_out, // Added
+      lodge_in,
+      lodge_out,
       status,
       correction_request,
       check_in_selfie_url,
@@ -69,6 +69,7 @@ export const checkIn = async (employeeId: number, hotelId: number, selfieUrl: st
   const { data, error } = await supabase
     .from('attendance')
     .insert({
+      check_in: new Date().toISOString(),
       employee_id: employeeId,
       hotel_id: hotelId,
       check_in_selfie_url: selfieUrl,
