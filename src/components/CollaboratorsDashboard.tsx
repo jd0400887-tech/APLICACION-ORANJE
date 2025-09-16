@@ -201,7 +201,7 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
 
       <Grid container spacing={3}>
         {filteredEmployees.map((employee) => (
-          <Grid key={employee.id} item xs={12} sm={6} md={4} lg={2}>
+          <Grid key={employee.id} item xs={12} sm={6} md={4} lg={3}>
             <Card sx={{ textAlign: 'center', backgroundColor: employee.isBlacklisted ? '#424242' : '#ffffff', color: employee.isBlacklisted ? '#ffffff' : '#000000' }}>
               <Box sx={{ pt: 3 }}><Avatar alt={`Foto de ${employee.name}`} src={getDisplayImage(employee.imageUrl, 'person')} sx={{ width: 100, height: 100, margin: 'auto' }} /></Box>
               <CardContent>
@@ -212,7 +212,7 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
                 <Typography variant="body2" color="text.secondary">{employee.city}, {employee.country}</Typography>
                 <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>Uniformes: {employee.uniforms?.pants || 0} Pantalones, {employee.uniforms?.shirts || 0} Camisas</Typography>
               </CardContent>
-              <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+              <CardActions sx={{ justifyContent: 'center', pb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Button size="small" variant="contained" onClick={() => handleEditClick(employee)} sx={mainButtonStyles}>Editar</Button>
                 <Button size="small" variant="outlined" onClick={() => handleAssignClick(employee)}>Asignar Uniforme</Button>
                 {currentUser && currentUser.role === 'Admin' && (<Button size="small" variant="contained" color="secondary" onClick={() => handleDeleteClick(employee.id)}>Eliminar</Button>)}

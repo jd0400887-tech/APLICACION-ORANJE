@@ -3,7 +3,7 @@ import {
   Button, Container, Typography, Paper, Snackbar, Alert, Card, CardContent, Box, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Avatar, Stack, IconButton, useTheme,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress, useMediaQuery, AppBar, Toolbar,
-  BottomNavigation, BottomNavigationAction, CardMedia
+  BottomNavigation, BottomNavigationAction, CardMedia, Fab
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/LoginOutlined';
 import LogoutIcon from '@mui/icons-material/LogoutOutlined';
@@ -267,28 +267,94 @@ const EmpleadoDashboard: React.FC = () => {
     switch (selectedTab) {
       case 0: // Home
         return (
-          <>
-            {assignedHotel && (
-              <Card elevation={3} sx={{ mb: 1, width: '100%', borderRadius: '20px' }}>
-                {/* <CardMedia component="img" height="140" image={assignedHotel.imageUrl} alt="Imagen del Hotel" /> */}
-                <CardContent sx={{ backgroundColor: theme.palette.primary.main, color: 'white', p: 1 }}>
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', wordBreak: 'break-word' }}>{assignedHotel.name}</Typography>
-                  <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{assignedHotel.address}, {assignedHotel.city}</Typography>
-                </CardContent>
-              </Card>
-            )}
-            {currentUser && (
-              <Card elevation={3} sx={{ mb: 1, width: '100%', borderRadius: '20px', borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid' }}>
-                <CardContent sx={{ p: isMobile ? 2 : 3 }}><Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap' }}><Avatar src={currentUser.imageUrl} sx={{ width: 60, height: 60, mr: 2 }} /><Box>                  <Typography variant="h6" component="div" sx={{ wordBreak: 'break-word' }}>{currentUser.name}</Typography><Typography variant="body1" color="text.secondary" sx={{ wordBreak: 'break-word' }}>{currentUser.role} - {currentUser.position}</Typography></Box></Box></CardContent>
-              </Card>
-            )}
-                        <Paper elevation={3} sx={{ mb: 1, borderRadius: '20px', borderColor: theme.palette.primary.main, borderWidth: 2, borderStyle: 'solid', mx: 'auto' }}>
-              <Typography variant="h6" align="center" sx={{ color: theme.palette.primary.main, px: 2, pt: 2 }}>Registro de Jornada</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5, flexWrap: 'wrap', px: 2 }}><Chip icon={<AccessTimeIcon />} label={lastCheckInId ? 'Activo' : 'Inactivo'} color={lastCheckInId ? 'success' : 'default'} /><Typography variant="h6">{currentTime.toLocaleTimeString()}</Typography></Box>
-              <Box sx={{ mb: 0.5, px: 2 }}>{renderLocationStatus()}</Box>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, px: 2, pb: 2 }}><Button variant="contained" color="primary" onClick={handleCheckIn} disabled={!!lastCheckInId || !currentUser || !isInRange} startIcon={<LoginIcon />} sx={{ mr: 1 }}>Check-in</Button><Button variant="contained" color="secondary" onClick={handleCheckOut} disabled={!lastCheckInId || !currentUser || !isInRange} startIcon={<LogoutIcon />}>Check-out</Button></Box>
-            </Paper>
-          </>
+          <Box sx={{
+            width: '100%',
+            height: 'calc(100vh - 120px)', // Adjust height as needed, considering app bar and bottom nav
+            position: 'relative',
+            overflow: 'hidden',
+            bgcolor: '#f0f0f0', // Gray background
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}>
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '150%',
+              height: '50%',
+              bgcolor: 'primary.main', // Orange background
+              borderRadius: '0 0 50% 50%',
+              zIndex: 0,
+            }} />
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              zIndex: 1,
+              pt: 4,
+            }}>
+              {currentUser && (
+                <Avatar
+                  src={currentUser.imageUrl}
+                  sx={{
+                    width: isMobile ? 80 : 120,
+                    height: isMobile ? 80 : 120,
+                    mb: 1,
+                    border: '4px solid white'
+                  }}
+                />
+              )}
+              {assignedHotel && (
+                <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ color: 'white', fontWeight: 'bold' }}>
+                  {assignedHotel.name}
+                </Typography>
+              )}
+            </Box>
+
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              width: '100%',
+              position: 'relative',
+              zIndex: 1,
+              pb: 4,
+            }}>
+              <Fab
+                color="primary"
+                aria-label="check-in"
+                onClick={handleCheckIn}
+                disabled={!!lastCheckInId || !currentUser || !isInRange}
+                sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <LoginIcon />
+                  <Typography variant="caption">Check-in</Typography>
+                </Box>
+              </Fab>
+
+              <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 'bold' }}>
+                {currentTime.toLocaleTimeString()}
+              </Typography>
+
+              <Fab
+                color="secondary"
+                aria-label="check-out"
+                onClick={handleCheckOut}
+                disabled={!lastCheckInId || !currentUser || !isInRange}
+                sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <LogoutIcon />
+                  <Typography variant="caption">Check-out</Typography>
+                </Box>
+              </Fab>
+            </Box>
+          </Box>
         );
       case 1: // Registros
         return (
