@@ -405,7 +405,7 @@ export const updateHotelContractUrl = async (hotelId: number, contractUrl: strin
   }
 };
 
-export export const uploadProfilePicture = async (file: File): Promise<string | null> => {
+export const uploadProfilePicture = async (file: File): Promise<string | null> => {
   const filePath = `selfies/${Date.now()}-${file.name}`;
 
   const { error } = await supabase.storage
