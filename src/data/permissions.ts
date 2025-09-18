@@ -11,6 +11,9 @@ export interface RolePermissions {
 
 const allModules = [
   { id: 'Dashboard', name: 'Dashboard' },
+  { id: 'Business Developer', name: 'Business Developer' },
+  { id: 'Coordinador', name: 'Coordinador' },
+  { id: 'Soporte Técnico', name: 'Soporte Técnico' },
   { id: 'Hotel Mg', name: 'Hotel Mg' },
   { id: 'Reclutamiento', name: 'Reclutamiento' },
   { id: 'Candidatos', name: 'Candidatos' },

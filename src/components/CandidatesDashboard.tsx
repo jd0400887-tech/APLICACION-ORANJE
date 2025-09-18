@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,18 +8,57 @@ import {
   CardActions,
   Button,
   Avatar,
-  useTheme
+  useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert
 } from '@mui/material';
 import { Candidate } from '../data/database';
 import { getDisplayImage } from '../utils/imageUtils';
 
 interface CandidatesDashboardProps {
   candidates: Candidate[];
-  onPromoteCandidate: (candidateId: number) => void;
+  onPromoteCandidateWithCredentials: (candidateId: number) => Promise<void>; // Simplified signature
 }
 
-function CandidatesDashboard({ candidates, onPromoteCandidate }: CandidatesDashboardProps) {
+function CandidatesDashboard({ candidates, onPromoteCandidateWithCredentials }: CandidatesDashboardProps) {
   const theme = useTheme();
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [error, setError] = useState('');
+
+  const [openDetailsDialog, setOpenDetailsDialog] = useState(false); // New state for details dialog
+  const [viewedCandidate, setViewedCandidate] = useState<Candidate | null>(null); // New state for viewed candidate
+
+  const handleOpenDialog = (candidate: Candidate) => {
+    setSelectedCandidate(candidate);
+    setOpenDialog(true);
+    setError('');
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedCandidate(null);
+  };
+
+  const handleOpenDetailsDialog = (candidate: Candidate) => { // New handler for details dialog
+    setViewedCandidate(candidate);
+    setOpenDetailsDialog(true);
+  };
+
+  const handleCloseDetailsDialog = () => { // New handler for details dialog
+    setOpenDetailsDialog(false);
+    setViewedCandidate(null);
+  };
+
+  const handleConfirmPromote = async () => {
+    if (selectedCandidate) {
+      await onPromoteCandidateWithCredentials(selectedCandidate.id); // Simplified call
+      handleCloseDialog();
+    }
+  };
 
   const mainButtonStyles = {
     transition: 'transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
@@ -39,12 +78,14 @@ function CandidatesDashboard({ candidates, onPromoteCandidate }: CandidatesDashb
       </Typography>
       <Grid container spacing={3}>
         {candidates.map((candidate) => (
-          <Grid key={candidate.id} xs={12} sm={6} md={4}> {/* Removed 'item' prop */}
-            <Card sx={{ textAlign: 'center' }}>
+          <Grid key={candidate.id} xs={12} sm={6} md={4}>
+            <Card 
+              sx={{ textAlign: 'center', cursor: 'pointer' }} // Added cursor and click handler
+              onClick={() => handleOpenDetailsDialog(candidate)}
+            >
               <Box sx={{ pt: 3 }}>
                 <Avatar
                   alt={`Foto de ${candidate.name}`}
-                  src={getDisplayImage(candidate.imageUrl, 'person')}
                   sx={{ width: 150, height: 150, margin: 'auto' }}
                 />
               </Box>
@@ -63,7 +104,7 @@ function CandidatesDashboard({ candidates, onPromoteCandidate }: CandidatesDashb
                 <Button 
                   size="small" 
                   variant="contained"
-                  onClick={() => onPromoteCandidate(candidate.id)}
+                  onClick={(e) => { e.stopPropagation(); handleOpenDialog(candidate); }} // Stop propagation for button click
                   sx={mainButtonStyles}
                 >
                   Contratar
@@ -78,6 +119,42 @@ function CandidatesDashboard({ candidates, onPromoteCandidate }: CandidatesDashb
           No hay candidatos disponibles en este momento.
         </Typography>
       )}
+
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Confirmar Contratación</DialogTitle>
+        <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <Typography>
+            ¿Estás seguro de que quieres contratar a {selectedCandidate?.name}?
+            Se creará un usuario con su email y una contraseña derivada de su número de teléfono.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmPromote}>Confirmar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New Dialog for Candidate Details */}
+      <Dialog open={openDetailsDialog} onClose={handleCloseDetailsDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Detalles del Candidato</DialogTitle>
+        <DialogContent dividers>
+          {viewedCandidate && (
+            <Box>
+              <Typography variant="h6" gutterBottom>{viewedCandidate.name}</Typography>
+              <Typography variant="body1"><strong>Email:</strong> {viewedCandidate.email}</Typography>
+              <Typography variant="body1"><strong>Teléfono:</strong> {viewedCandidate.phone}</Typography>
+              <Typography variant="body1"><strong>Fecha de Nacimiento:</strong> {viewedCandidate.dob}</Typography>
+              <Typography variant="body1"><strong>Posición:</strong> {viewedCandidate.position}</Typography>
+              <Typography variant="body1"><strong>Dirección:</strong> {viewedCandidate.address}, {viewedCandidate.city}, {viewedCandidate.state}, {viewedCandidate.zip}, {viewedCandidate.country}</Typography>
+              {/* Add more fields as needed */}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDetailsDialog}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

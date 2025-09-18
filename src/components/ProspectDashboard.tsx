@@ -15,9 +15,10 @@ import { Hotel, uploadContract, updateHotelContractUrl } from '../data/database'
 interface ProspectDashboardProps {
   hotel: Hotel;
   onBack: () => void;
+  onDeleteHotel: (hotelId: number) => void;
 }
 
-function ProspectDashboard({ hotel, onBack }: ProspectDashboardProps) {
+function ProspectDashboard({ hotel, onBack, onDeleteHotel }: ProspectDashboardProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   // Local state to track the URL, to update the UI immediately after upload
@@ -59,6 +60,14 @@ function ProspectDashboard({ hotel, onBack }: ProspectDashboardProps) {
         sx={{ mb: 2 }}
       >
         Volver a la lista de Hoteles
+      </Button>
+      <Button
+        variant="contained"
+        color="error"
+        onClick={() => onDeleteHotel(hotel.id)}
+        sx={{ mb: 2, ml: 2 }}
+      >
+        Eliminar Hotel
       </Button>
       <Paper sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>

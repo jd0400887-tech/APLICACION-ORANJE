@@ -1,37 +1,37 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom'; // Import Link
 import { useAuth } from '../context/AuthContext';
 import { Container, Paper, TextField, Button, Typography, Box } from '@mui/material';
-import { supabase } from '../supabaseClient'; // Importar supabase
+import { supabase } from '../supabaseClient';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
-      if (error) {
-        setError(error.message);
+      if (signInError) {
+        setError(signInError.message);
       } else if (data.user) {
-        // After Supabase login is successful, we log in to our app context
         const appLoginSuccess = await login(data.user.email || '');
         
-        if (!appLoginSuccess) {
-          // This can happen if the user exists in Supabase Auth but not in the employees table
+        if (appLoginSuccess) {
+          navigate('/');
+        } else {
           setError('Authentication successful, but user profile not found in the application.');
-          // Log out from Supabase to prevent inconsistent states
           supabase.auth.signOut();
         }
-        // If login is successful, the App component will automatically re-render.
       } else {
         setError('An unexpected error occurred during login.');
       }
@@ -84,6 +84,16 @@ const LoginPage: React.FC = () => {
           >
             Sign In
           </Button>
+          
+          <Link to="/candidate-submission" style={{ textDecoration: 'none' }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{ mt: 1, mb: 2 }}
+            >
+              ¿Quieres trabajar con nosotros? Envía tu CV
+            </Button>
+          </Link>
         </Box>
       </Paper>
     </Container>

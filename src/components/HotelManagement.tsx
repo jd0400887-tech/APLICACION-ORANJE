@@ -54,7 +54,7 @@ interface HotelManagementProps {
 const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, onUpdateStatus, mainButtonStyles }) => (
     <Grid container spacing={3} sx={{ mt: 2 }}>
       {hotels.map((hotel) => (
-        <Grid key={hotel.id} item xs={12} sm={6} md={4}>
+        <Grid key={hotel.id} xs={12} sm={6} md={4}>
           <Card>
             <CardActionArea onClick={() => onSelectHotel(hotel)}>
               <CardMedia

@@ -14,7 +14,7 @@ export interface Person {
   zip: string;
   address: string;
   position: string;
-  imageUrl: string;
+  image_url: string; // Changed from imageUrl to image_url
 }
 
 export interface Employee extends Person {
@@ -22,6 +22,7 @@ export interface Employee extends Person {
   hotel: string | null;
   role: 'Admin' | 'Hotel Manager' | 'Reclutador' | 'QA Inspector' | 'Contador' | 'Trabajador';
   isBlacklisted: boolean;
+  user_id: string | null; // Link to Supabase auth user
 }
 
 export interface Candidate extends Person {
@@ -117,7 +118,7 @@ export const getEmployees = async (): Promise<Employee[]> => {
 };
 
 export const getCandidates = async (): Promise<Candidate[]> => {
-  const { data, error } = await supabase.from('candidates').select('*');
+  const { data, error } = await supabase.from('candidate_submissions').select('*');
   if (error) {
     console.error('Error fetching candidates:', error);
     return [];
@@ -257,47 +258,113 @@ export const fulfillRequest = async (requestId: number): Promise<void> => {
   }
 };
 
-export const promoteCandidateToEmployee = async (candidateId: number): Promise<void> => {
-  const { data: candidate, error: fetchError } = await supabase
+export const addCandidate = async (newCandidateData: Omit<Candidate, 'id'>): Promise<Candidate | null> => {
+  const { data, error } = await supabase
     .from('candidates')
-    .select('*')
-    .eq('id', candidateId)
+    .insert([newCandidateData])
+    .select()
     .single();
 
-  if (fetchError || !candidate) {
-    console.error('Error fetching candidate to promote:', fetchError);
-    return;
+  if (error) {
+    console.error('Error adding candidate:', error);
+    return null;
   }
+  return data as Candidate;
+};
 
-  if (candidate.is_blacklisted) {
-    console.error('Cannot promote a blacklisted candidate.');
-    return;
-  }
+export const promoteCandidateToEmployee = async (candidateId: number): Promise<void> => {
+  // This function is now deprecated and replaced by promoteCandidateAndCreateUser
+  console.warn('promoteCandidateToEmployee is deprecated. Use promoteCandidateAndCreateUser instead.');
+};
 
-  const { id, created_at, ...candidateData } = candidate;
-  const newEmployeeData = {
-    ...candidateData,
-    status: 'Available',
-    hotel_id: null,
-    role: 'Trabajador'
-  };
+export const promoteCandidateAndCreateUser = async (
+  candidateId: number
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // 1. Fetch candidate data to get email and phone
+    const { data: candidate, error: fetchError } = await supabase
+      .from('candidate_submissions')
+      .select('*')
+      .eq('id', candidateId)
+      .single();
 
-  const { error: insertError } = await supabase
-    .from('employees')
-    .insert([newEmployeeData]);
+    if (fetchError || !candidate) {
+      console.error('Error fetching candidate to promote:', fetchError);
+      return { success: false, error: fetchError?.message || 'Candidate not found.' };
+    }
 
-  if (insertError) {
-    console.error('Error inserting new employee:', insertError);
-    return;
-  }
+    if (candidate.is_blacklisted) {
+      console.error('Cannot promote a blacklisted candidate.');
+      return { success: false, error: 'Cannot promote a blacklisted candidate.' };
+    }
 
-  const { error: deleteError } = await supabase
-    .from('candidates')
-    .delete()
-    .eq('id', candidateId);
+    const email = candidate.email;
+    const phoneNumber = candidate.phone;
+    const generatedPassword = phoneNumber ? phoneNumber.slice(0, -2) : 'defaultpassword'; // Derive password
 
-  if (deleteError) {
-    console.error('Error deleting promoted candidate:', deleteError);
+    if (!email || !generatedPassword) {
+      return { success: false, error: 'Email or phone number missing for candidate.' };
+    }
+
+    // 2. Create Supabase user
+    const { data: userData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: generatedPassword,
+      options: {
+        emailRedirectTo: window.location.origin, // Redirects to the current app origin, but doesn't auto-login
+      },
+    });
+
+    if (authError) {
+      if (authError.message === 'User already registered') {
+        return { success: false, error: 'El usuario ya está registrado. Por favor, utiliza las credenciales existentes o restablece la contraseña manualmente.' };
+      } else {
+        console.error('Error creating Supabase user:', authError);
+        return { success: false, error: authError.message };
+      }
+    }
+
+    if (!userData.user) {
+      return { success: false, error: 'User data not returned after signup.' };
+    }
+
+    console.log(`Simulating email confirmation to ${email} with username: ${email} and password: ${generatedPassword}`);
+    // In a real application, you would integrate with an email service here
+
+    // 3. Promote candidate to employee
+    const { id, created_at, ...candidateData } = candidate;
+    const newEmployeeData = {
+      ...candidateData,
+      status: 'Available',
+      hotel_id: null,
+      role: 'Trabajador',
+      user_id: userData.user.id, // Link Supabase user ID to employee
+    };
+
+    const { error: insertError } = await supabase
+      .from('employees')
+      .insert([newEmployeeData]);
+
+    if (insertError) {
+      console.error('Error inserting new employee:', insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    // 4. Delete promoted candidate
+    const { error: deleteError } = await supabase
+      .from('candidate_submissions')
+      .delete()
+      .eq('id', candidateId);
+
+    if (deleteError) {
+      console.error('Error deleting promoted candidate:', deleteError);
+      // This error is not critical enough to fail the entire operation if employee creation was successful
+    }
+
+    return { success: true, email: email, password: generatedPassword };
+  } catch (error: any) {
+    console.error('Unexpected error during candidate promotion and user creation:', error);
+    return { success: false, error: error.message || 'An unexpected error occurred.' };
   }
 };
 

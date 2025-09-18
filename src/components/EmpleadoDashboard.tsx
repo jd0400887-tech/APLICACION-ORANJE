@@ -312,7 +312,7 @@ const EmpleadoDashboard: React.FC = () => {
             flexGrow: 1,
             position: 'relative',
             overflow: 'hidden',
-            bgcolor: '#f0f0f0', // Gray background
+            bgcolor: '#f4f6f8', // Light grey background, similar to sign-in page
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -326,6 +326,40 @@ const EmpleadoDashboard: React.FC = () => {
               height: '50%',
               bgcolor: 'primary.main', // Orange background
               borderRadius: '0 0 50% 50%',
+              zIndex: 0,
+            }} />
+            {/* Orange Circles */}
+            <Box sx={{
+              position: 'absolute',
+              width: 100,
+              height: 100,
+              background: 'radial-gradient(circle at 30% 30%, #FFB74D, #FF9800)', // Orange gradient for orange fruit theme
+              borderRadius: '50%',
+              opacity: 0.6, // Increased opacity for more prominence
+              top: '10%',
+              left: '5%',
+              zIndex: 0,
+            }} />
+            <Box sx={{
+              position: 'absolute',
+              width: 150,
+              height: 150,
+              background: 'radial-gradient(circle at 30% 30%, #FFB74D, #FF9800)', // Orange gradient for orange fruit theme
+              borderRadius: '50%',
+              opacity: 0.5, // Increased opacity
+              bottom: '15%',
+              right: '10%',
+              zIndex: 0,
+            }} />
+            <Box sx={{
+              position: 'absolute',
+              width: 70,
+              height: 70,
+              background: 'radial-gradient(circle at 30% 30%, #FFB74D, #FF9800)', // Orange gradient for orange fruit theme
+              borderRadius: '50%',
+              opacity: 0.7, // Increased opacity
+              top: '40%',
+              right: '5%',
               zIndex: 0,
             }} />
             <Box sx={{

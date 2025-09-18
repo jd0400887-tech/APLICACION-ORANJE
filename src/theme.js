@@ -1,16 +1,21 @@
 import { createTheme } from '@mui/material/styles';
 
-const theme = createTheme({
+const getAppTheme = (mode) => createTheme({
   palette: {
+    mode,
     primary: {
-      main: '#FF8C00', // Darker Orange
+      main: mode === 'light' ? '#FF8C00' : '#FFA726', // Darker Orange for light, Lighter Orange for dark
     },
     secondary: {
-      main: '#4caf50', // Material Green 500
+      main: mode === 'light' ? '#1976D2' : '#90CAF9', // Deep Blue for light, Light Blue for dark
     },
     background: {
-      default: '#f4f6f8', // Light grey background for the main content area
-      paper: '#ffffff', // White background for surfaces like Drawer
+      default: mode === 'light' ? '#F5F5F5' : '#121212', // Light Grey for light, Very Dark Grey for dark
+      paper: mode === 'light' ? '#FFFFFF' : '#1E1E1E', // White for light, Slightly Lighter Dark Grey for dark
+    },
+    text: {
+      primary: mode === 'light' ? '#212121' : '#E0E0E0', // Dark Grey for light, Light Grey for dark
+      secondary: mode === 'light' ? '#757575' : '#B0B0B0', // Medium Grey for light, Medium Light Grey for dark
     },
   },
   components: {
@@ -24,21 +29,21 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#FFFFFF', // White for Drawer background
+          // This will be handled by palette.background.paper
         },
       },
     },
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          color: '#333333', // Darker text for better contrast on white background
+          // This will be handled by palette.text.primary
         },
       },
     },
     MuiListItemIcon: {
       styleOverrides: {
         root: {
-          color: '#1976d2', // Use primary color for icons
+          color: mode === 'light' ? '#FF8C00' : '#FFA726', // Use primary color (orange) for icons
         },
       },
     },
@@ -46,12 +51,12 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '&:hover': {
-            backgroundColor: 'rgba(255, 140, 0, 0.08)', // Light primary color on hover
+            backgroundColor: mode === 'light' ? 'rgba(255, 140, 0, 0.08)' : 'rgba(255, 167, 38, 0.08)', // Light primary color on hover
           },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(255, 140, 0, 0.16)', // Slightly darker primary for selected
+            backgroundColor: mode === 'light' ? 'rgba(255, 140, 0, 0.16)' : 'rgba(255, 167, 38, 0.16)', // Slightly darker primary for selected
             '&:hover': {
-              backgroundColor: 'rgba(255, 140, 0, 0.24)', // Even darker on hover for selected
+              backgroundColor: mode === 'light' ? 'rgba(255, 140, 0, 0.24)' : 'rgba(255, 167, 38, 0.24)', // Even darker on hover for selected
             },
           },
         },
@@ -60,4 +65,4 @@ const theme = createTheme({
   },
 });
 
-export default theme;
+export default getAppTheme;
