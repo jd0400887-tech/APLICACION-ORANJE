@@ -30,8 +30,8 @@ export default defineConfig({
       }
     }),
     commonjs({
-      include: [/node_modules/, 'jspdf-autotable', '@supabase/postgrest-js'],
-      esmExternals: ['jspdf-autotable'],
+      include: [/node_modules/, '@supabase/postgrest-js'],
+      esmExternals: ['@supabase/postgrest-js'],
     }),
   ],
   server: {

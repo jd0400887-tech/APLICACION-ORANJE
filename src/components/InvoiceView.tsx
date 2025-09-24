@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import {
   Container, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Box, Button
@@ -72,63 +73,40 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
     return { invoiceDetails, grandTotalEmployeePay: grandTotalEmployeePay.toFixed(2), totalCompanyCharge: totalCompanyCharge.toFixed(2) };
   }, [records, employees, hotel]);
 
+  const invoiceRef = useRef<HTMLDivElement>(null);
+
   const handleDownloadPdf = () => {
-    const doc = new jsPDF();
-    let yPos = 10;
+    if (invoiceRef.current) {
+      html2canvas(invoiceRef.current, {
+        scale: 2, // Increase scale for better quality
+        useCORS: true, // Enable CORS if images are from external sources
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
 
-    doc.setFontSize(18);
-    doc.text(`Factura para ${hotel.name}`, 20, yPos);
-    yPos += 10;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
 
-    doc.setFontSize(10);
-    doc.text(`Dirección: ${hotel.address || 'N/A'}, ${hotel.city || 'N/A'}`, 20, yPos);
-    yPos += 5;
-    doc.text(`Contacto: ${hotel.contact || 'N/A'}`, 20, yPos);
-    yPos += 5;
-    doc.text(`Email: ${hotel.email || 'N/A'}`, 20, yPos);
-    yPos += 5;
-    doc.text(`Gerente General: ${hotel.generalManager || 'N/A'}`, 20, yPos);
-    yPos += 10;
-
-    doc.setFontSize(12);
-    doc.text(`Semana del: ${new Date(records[0]?.date).toLocaleDateString() || 'N/A'}`, 20, yPos);
-    yPos += 10;
-
-    const tableColumn = ["Empleado", "Posición", "H. Reg.", "H. OT.", "H. Tot.", "Pago Total", "Cargo Total"];
-    const tableRows: any[] = [];
-
-    invoiceData.invoiceDetails.forEach(item => {
-      const rowData = [
-        item.employeeName,
-        item.position,
-        item.regularHours,
-        item.overtimeHours,
-        item.totalHours,
-        `$${item.totalEmployeePay}`,
-        `$${item.totalChargeToHotel}`,
-      ];
-      tableRows.push(rowData);
-    });
-
-    jspdfAutotable.autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: yPos,
-      headStyles: { fillColor: [255, 165, 0] }, // Orange color for header
-      theme: 'grid',
-    });
-
-    let finalY = (doc as any).lastAutoTable.finalY;
-    doc.setFontSize(12);
-    doc.text(`Total Pago Empleados: $${invoiceData.grandTotalEmployeePay}`, 14, finalY + 10);
-    doc.text(`Total Cargo a Hotel: $${invoiceData.totalCompanyCharge}`, 14, finalY + 16);
-    doc.save(`factura-${hotel.name}-${new Date(records[0]?.date).toLocaleDateString()}.pdf`);
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        pdf.save(`factura-${hotel.name}-${new Date(records[0]?.date).toLocaleDateString()}.pdf`);
+      });
+    }
   };
 
   return (
     <Container>
       <Button onClick={onBack} sx={{ mb: 2 }}>Volver al Dashboard de Nómina</Button>
-      <Paper elevation={3} sx={{ p: 2 }}>
+      <Paper elevation={3} sx={{ p: 2 }} ref={invoiceRef}>
         <Typography variant="h4" gutterBottom>Factura para {hotel.name}</Typography>
         <Typography variant="subtitle1" gutterBottom>Semana del {new Date(records[0]?.date).toLocaleDateString() || 'N/A'}</Typography>
         <TableContainer>
