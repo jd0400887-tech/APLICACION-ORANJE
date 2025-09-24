@@ -109,7 +109,12 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
       tableRows.push(rowData);
     });
 
-    doc.autoTable({
+import jsPDF from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
+
+// ... (resto del código)
+
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: yPos,
