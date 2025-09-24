@@ -113,10 +113,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
         `$${item.totalEmployeePay}`,
         `$${item.totalChargeToHotel}`,
       ];
-      tableRows.push(rowData);
-    });
-
-    autoTable(doc, {
+    doc.autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: yPos,
