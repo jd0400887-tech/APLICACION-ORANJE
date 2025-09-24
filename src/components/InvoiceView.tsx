@@ -4,13 +4,6 @@ import {
   Box, Button
 } from '@mui/material';
 import jsPDF from 'jspdf';
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: yPos,
-      headStyles: { fillColor: [255, 165, 0] }, // Orange color for header
-      theme: 'grid',
-    });
 import { Hotel, Employee } from '../data/database';
 import { Attendance } from '../data/attendance';
 import { PayrollSettings } from './PayrollSettingsDialog';
