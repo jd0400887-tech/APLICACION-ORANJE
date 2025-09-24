@@ -1,5 +1,4 @@
 export const getDisplayImage = (imageUrl: string | null | undefined, type: 'person' | 'hotel' = 'hotel'): string => {
-  console.log('getDisplayImage received imageUrl:', imageUrl); // Temporary debug line
   if (imageUrl && imageUrl.trim() !== '') {
     return imageUrl; // Use the provided imageUrl if it exists
   }
