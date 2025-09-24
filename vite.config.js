@@ -32,6 +32,7 @@ export default defineConfig({
     commonjs({
       include: [/node_modules/, '@supabase/postgrest-js'],
       ignoreTryCatch: false,
+      esmExternals: true,
     }),
   ],
   server: {
