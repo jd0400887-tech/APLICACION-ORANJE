@@ -30,6 +30,7 @@ export default defineConfig({
       }
     }),
     commonjs({
+      include: [/node_modules/, '@supabase/postgrest-js'],
       ignoreTryCatch: false,
     }),
   ],
@@ -40,6 +41,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: ['jspdf-autotable'],
     },
   },
   optimizeDeps: {
