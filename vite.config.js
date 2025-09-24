@@ -29,10 +29,7 @@ export default defineConfig({
         ]
       }
     }),
-    commonjs({
-      include: [/node_modules/, '@supabase/postgrest-js'],
-      esmExternals: ['@supabase/postgrest-js'],
-    }),
+    commonjs(),
   ],
   server: {
     proxy: {
