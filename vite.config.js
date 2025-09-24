@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import commonjs from '@rollup/plugin-commonjs'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -27,7 +28,10 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    commonjs({
+      ignoreTryCatch: false,
+    }),
   ],
   server: {
     proxy: {
@@ -40,11 +44,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['jspdf', 'jspdf-autotable'],
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/, 'jspdf-autotable'],
-      transformMixedEsModules: true,
-    },
   },
 })
