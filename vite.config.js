@@ -40,7 +40,7 @@ export default defineConfig({
       '/api': {
         target: 'https://nominatim.openstreetmap.org',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^/api/, ''),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
