@@ -38,4 +38,12 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['jspdf'],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+  },
 })
