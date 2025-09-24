@@ -9,6 +9,7 @@ import {
   Grid,
   MenuItem,
 } from '@mui/material';
+import { JOB_POSITIONS } from '../data/constants';
 
 function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewRequest }) {
   const [formData, setFormData] = useState({
@@ -28,7 +29,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
   });
 
   const englishLevels = ['Básico', 'Intermedio', 'Avanzado', 'Nativo'];
-  const positions = ['Recepcionista', 'Limpieza', 'Seguridad', 'Gerente', 'Otro']; // Example positions
+  const positions = JOB_POSITIONS;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,12 +50,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
       <DialogTitle>Solicitud de Requerimiento de Personal para {hotelName}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2}>
-          {/* Grid items for form fields remain unchanged */}
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               margin="dense"
               name="city"
@@ -66,11 +62,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               margin="dense"
               name="state"
@@ -82,11 +74,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               margin="dense"
               name="manager"
@@ -98,11 +86,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               margin="dense"
               name="contact"
@@ -114,11 +98,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               select
               margin="dense"
@@ -136,11 +116,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               ))}
             </TextField>
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               margin="dense"
               name="quantity"
@@ -152,11 +128,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 4
-            }}>
+          <Grid item xs={12} sm={4}>
             <TextField
               margin="dense"
               name="startTime"
@@ -169,11 +141,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 4
-            }}>
+          <Grid item xs={12} sm={4}>
             <TextField
               margin="dense"
               name="startDate"
@@ -186,11 +154,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 4
-            }}>
+          <Grid item xs={12} sm={4}>
             <TextField
               margin="dense"
               name="endDate"
@@ -203,11 +167,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               select
               margin="dense"
@@ -225,11 +185,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               ))}
             </TextField>
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              sm: 6
-            }}>
+          <Grid item xs={12} sm={6}>
             <TextField
               select
               margin="dense"
@@ -247,7 +203,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               ))}
             </TextField>
           </Grid>
-          <Grid size={12}>
+          <Grid item xs={12}>
             <TextField
               margin="dense"
               name="experience"
@@ -261,7 +217,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
               onChange={handleChange}
             />
           </Grid>
-          <Grid size={12}>
+          <Grid item xs={12}>
             <TextField
               margin="dense"
               name="observations"

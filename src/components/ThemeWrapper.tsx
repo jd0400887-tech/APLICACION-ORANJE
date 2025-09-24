@@ -17,8 +17,6 @@ const ThemeWrapper: React.FC = () => {
   const { mode } = useThemeContext();
   const theme = useMemo(() => getAppTheme(mode), [mode]);
 
-  {import.meta.env.DEV && console.log('App: currentUser value:', currentUser)};
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

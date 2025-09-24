@@ -27,9 +27,10 @@ interface HotelDashboardProps {
   onAddNewRequest: (newRequestData: any) => void;
   onHotelUpdated: (updatedHotel: Hotel) => void;
   employees: Employee[];
+  currentUser: any; // New prop
 }
 
-function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employees }: HotelDashboardProps) {
+function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employees, currentUser }: HotelDashboardProps) {
   const theme = useTheme();
   const [openPersonnelRequest, setOpenPersonnelRequest] = useState(false);
   const [openIncidentAlert, setOpenIncidentAlert] = useState(false);
@@ -177,7 +178,7 @@ function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employ
         Dashboard para: {hotel.name}
       </Typography>
 
-      {view === 'main' ? renderMainDashboard() : <PayrollView onBack={() => setView('main')} />}
+      {view === 'main' ? renderMainDashboard() : <PayrollView hotel={hotel} employees={assignedPersonnel} onBack={() => setView('main')} onHotelUpdated={onHotelUpdated} currentUser={currentUser} />}
 
       <EditHotelForm
         open={isEditOpen}

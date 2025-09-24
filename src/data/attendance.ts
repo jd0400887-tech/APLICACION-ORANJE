@@ -129,6 +129,62 @@ export const requestCorrection = async (attendanceId: number, message: string): 
   }
 };
 
+export const getAttendanceForHotel = async (hotelId: number): Promise<Attendance[]> => {
+  const { data, error } = await supabase
+    .from('attendance')
+    .select(`
+      id,
+      check_in,
+      check_out,
+      lodge_in,
+      lodge_out,
+      status,
+      correction_request,
+      check_in_selfie_url,
+      employee_id,
+      employees ( id, name, position ),
+      hoteles ( id, name )
+    `)
+    .eq('hotel_id', hotelId);
+
+  if (error) {
+    console.error('Error fetching attendance for hotel:', error.message);
+    return [];
+  }
+
+  const formattedData = data.map(r => ({
+    id: r.id,
+    employeeId: r.employees.id,
+    employeeName: r.employees.name,
+    hotelName: r.hoteles.name,
+    position: r.employees.position,
+    date: new Date(r.check_in).toISOString().split('T')[0],
+    checkIn: new Date(r.check_in).toLocaleTimeString(),
+    checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString() : null,
+    workHours: r.check_out ? (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000 : null,
+    status: r.status as Attendance['status'],
+    correctionRequest: r.correction_request,
+    checkInSelfie: r.check_in_selfie_url,
+  }));
+
+  return formattedData;
+};
+
+export const updateAttendanceRecord = async (attendanceId: number, updates: { check_in: string; check_out: string; }) => {
+  const { data, error } = await supabase
+    .from('attendance')
+    .update(updates)
+    .eq('id', attendanceId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating attendance record:', error);
+    return null;
+  }
+  return data;
+};
+
 export const uploadSelfie = async (imageDataUrl: string): Promise<string | null> => {
   const base64Response = await fetch(imageDataUrl);
   const blob = await base64Response.blob();

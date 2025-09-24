@@ -1,207 +1,161 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import {
-  Container, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Box, TextField, TableSortLabel, Card, CardContent,
+  Container, Typography, Paper, Box, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Button, Chip
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getAttendance, Attendance } from '../data/attendance';
+import { getEmployees, Hotel, Employee } from '../data/database';
+import { getAllWeeklyApprovals } from '../data/approvals';
+import { getWeekStartDate } from '../utils/payroll';
+import InvoiceView from './InvoiceView';
+import WeeklyReportDetail from './WeeklyReportDetail';
 
-const NominaDashboard: React.FC = () => {
-  const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [orderBy, setOrderBy] = useState<keyof Attendance>('date');
-  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+interface ProcessedWeek {
+  weekStartDate: string;
+  employeeApprovals: Map<number, 'pending' | 'approved'>; // Map<employeeId, status>
+  records: Attendance[];
+}
 
-  useEffect(() => {
-    const fetchRecords = async () => {
-      const records = await getAttendance();
-      setAttendanceRecords(records);
-    };
-    fetchRecords();
-  }, []);
+interface NominaDashboardProps {
+  currentUser: any; // Assuming currentUser has a 'role' property
+  hotels: Hotel[]; // New prop
+}
 
-  const formatDuration = (checkIn: string | null, checkOut: string | null, date: string) => {
-    if (!checkIn || !checkOut) return 'N/A';
-    const checkInTime = new Date(`${date}T${checkIn}`).getTime();
-    const checkOutTime = new Date(`${date}T${checkOut}`).getTime();
-    const milliseconds = checkOutTime - checkInTime;
-    if (milliseconds < 0) return 'N/A';
-    const hours = Math.floor(milliseconds / 3600000);
-    const minutes = Math.floor((milliseconds % 3600000) / 60000);
-    return `${hours}h ${minutes}m`;
-  };
+type ProcessedData = Map<number, { hotelName: string; weeks: Map<string, ProcessedWeek> }>;
 
-  const filteredAndSortedRecords = useMemo(() => {
-    let currentRecords = attendanceRecords;
+const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }) => {
+  const [loading, setLoading] = useState(true);
+  const [processedData, setProcessedData] = useState<ProcessedData>(new Map());
+  const [viewingInvoiceFor, setViewingInvoiceFor] = useState<{ hotel: Hotel, week: ProcessedWeek } | null>(null);
+  const [viewingWeekDetailFor, setViewingWeekDetailFor] = useState<{ hotel: Hotel, week: ProcessedWeek } | null>(null);
+  // const [allHotels, setAllHotels] = useState<Hotel[]>([]); // No longer needed as a state, use prop directly
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
 
-    // Filter by search term (employee name)
-    if (searchTerm) {
-      currentRecords = currentRecords.filter(rec =>
-        rec.employeeName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+  const fetchAndProcessData = async () => {
+    setLoading(true);
+    const [approvals, records, employees] = await Promise.all([
+      getAllWeeklyApprovals(),
+      getAttendance(),
+      getEmployees()
+    ]);
 
-    // Filter by date range
-    if (startDate) {
-      currentRecords = currentRecords.filter(rec => rec.date >= startDate);
-    }
-    if (endDate) {
-      currentRecords = currentRecords.filter(rec => rec.date <= endDate);
-    }
+    // setAllHotels(hotels); // No longer needed
+    setAllEmployees(employees);
 
-    // Sort
-    return currentRecords.sort((a, b) => {
-      const aValue = a[orderBy];
-      const bValue = b[orderBy];
+    const newProcessedData: ProcessedData = new Map();
+    hotels.forEach(h => newProcessedData.set(h.id, { hotelName: h.name, weeks: new Map() }));
 
-      if (aValue === null || aValue === undefined) return order === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return order === 'asc' ? 1 : -1;
+    records.forEach(record => {
+      const hotel = hotels.find(h => h.name === record.hotelName);
+      if (!hotel) return;
+      const payrollSettings = { week_cutoff_day: 'saturday', ...(hotel.payroll_settings as any || {}) };
+      const weekStartDate = getWeekStartDate(payrollSettings.week_cutoff_day, new Date(record.date)).toISOString().split('T')[0];
+      let hotelData = newProcessedData.get(hotel.id);
+      if (!hotelData) return;
+      let weekData = hotelData.weeks.get(weekStartDate);
+      if (!weekData) {
+        weekData = { weekStartDate, employeeApprovals: new Map(), records: [] };
+        hotelData.weeks.set(weekStartDate, weekData);
+      }
+      weekData.records.push(record);
+    });
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return order === 'asc' ? aValue - bValue : bValue - aValue;
-      } else {
-        return 0;
+    newProcessedData.forEach(hotelData => {
+      hotelData.weeks.forEach(weekData => {
+        weekData.records.forEach(record => {
+          if (!weekData.employeeApprovals.has(record.employeeId)) {
+            weekData.employeeApprovals.set(record.employeeId, 'pending');
+          }
+        });
+      });
+    });
+
+    approvals.forEach(approval => {
+      const hotelData = newProcessedData.get(approval.hotel_id);
+      if (hotelData) {
+        const weekData = hotelData.weeks.get(approval.week_start_date);
+        if (weekData) {
+          weekData.employeeApprovals.set(approval.employee_id, approval.status);
+        }
       }
     });
-  }, [attendanceRecords, searchTerm, startDate, endDate, orderBy, order]);
 
-  const handleRequestSort = (property: keyof Attendance) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
+    setProcessedData(newProcessedData);
+    setLoading(false);
   };
 
-  const totalHoursFiltered = filteredAndSortedRecords.reduce((acc, rec) => {
-    if (rec.workHours) {
-      return acc + rec.workHours;
+  useEffect(() => {
+    if (hotels.length > 0) { // Only fetch and process data if hotels prop is available
+      fetchAndProcessData();
     }
-    return acc;
-  }, 0);
+  }, [hotels]); // Depend on hotels prop
+
+  const handleWeekClick = (hotelId: number, week: ProcessedWeek) => {
+    const hotel = hotels.find(h => h.id === hotelId);
+    if (hotel) {
+      setViewingWeekDetailFor({ hotel, week });
+    }
+  };
+
+  const handleGenerateInvoice = () => {
+    if (viewingWeekDetailFor) {
+      setViewingInvoiceFor(viewingWeekDetailFor);
+      setViewingWeekDetailFor(null);
+    }
+  };
+
+  if (loading) {
+    return <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Container>;
+  }
+
+  if (viewingInvoiceFor) {
+    return <InvoiceView hotel={viewingInvoiceFor.hotel} records={viewingInvoiceFor.week.records} employees={allEmployees} onBack={() => setViewingInvoiceFor(null)} />;
+  }
+
+  if (viewingWeekDetailFor) {
+    return <WeeklyReportDetail hotel={viewingWeekDetailFor.hotel} week={viewingWeekDetailFor.week} employees={allEmployees} onBack={() => setViewingWeekDetailFor(null)} onGenerateInvoice={handleGenerateInvoice} onRefreshDashboard={fetchAndProcessData} currentUser={currentUser} />;
+  }
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>
-        Nómina
+      <Typography variant="h4" gutterBottom>Nómina Global</Typography>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+        Supervisa las aprobaciones de nómina de todos los hoteles. Haz clic en una semana para ver el detalle.
       </Typography>
 
-      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField
-          label="Buscar por Empleado"
-          variant="outlined"
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <TextField
-          label="Fecha Inicio"
-          type="date"
-          variant="outlined"
-          size="small"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          label="Fecha Fin"
-          type="date"
-          variant="outlined"
-          size="small"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Box>
+      {Array.from(processedData.entries()).map(([hotelId, { hotelName, weeks }]) => {
+        const totalPendingWeeks = Array.from(weeks.values()).filter(week => 
+          Array.from(week.employeeApprovals.values()).some(status => status === 'pending')
+        ).length;
+        if (weeks.size === 0) return null;
 
-      <Card elevation={3} sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Resumen de Horas
-          </Typography>
-          <Typography variant="h4" component="div">
-            {totalHoursFiltered.toFixed(2)} horas
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Total de horas trabajadas en el periodo filtrado.
-          </Typography>
-        </CardContent>
-      </Card>
-
-      <Paper elevation={3} sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Historial de Asistencia
-        </Typography>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'employeeName'}
-                    direction={orderBy === 'employeeName' ? order : 'asc'}
-                    onClick={() => handleRequestSort('employeeName')}
-                  >
-                    Empleado
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'hotelName'}
-                    direction={orderBy === 'hotelName' ? order : 'asc'}
-                    onClick={() => handleRequestSort('hotelName')}
-                  >
-                    Hotel
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'position'}
-                    direction={orderBy === 'position' ? order : 'asc'}
-                    onClick={() => handleRequestSort('position')}
-                  >
-                    Posición
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'date'}
-                    direction={orderBy === 'date' ? order : 'asc'}
-                    onClick={() => handleRequestSort('date')}
-                  >
-                    Fecha
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>Entrada</TableCell>
-                <TableCell>Salida</TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'workHours'}
-                    direction={orderBy === 'workHours' ? order : 'asc'}
-                    onClick={() => handleRequestSort('workHours')}
-                  >
-                    Duración
-                  </TableSortLabel>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredAndSortedRecords.map((rec) => (
-                <TableRow key={rec.id}>
-                  <TableCell>{rec.employeeName}</TableCell>
-                  <TableCell>{rec.hotelName}</TableCell>
-                  <TableCell>{rec.position}</TableCell>
-                  <TableCell>{new Date(rec.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{rec.checkIn}</TableCell>
-                  <TableCell>{rec.checkOut || 'En curso'}</TableCell>
-                  <TableCell>{formatDuration(rec.checkIn, rec.checkOut, rec.date)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+        return (
+          <Accordion key={hotelId} defaultExpanded={totalPendingWeeks > 0}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                <Typography variant="h6">{hotelName}</Typography>
+                {totalPendingWeeks > 0 ? (
+                  <Chip label={`${totalPendingWeeks} semana(s) pendiente(s)`} color="warning" size="small" />
+                ) : (
+                  <Chip label="Todo aprobado" color="success" size="small" />
+                )}
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {Array.from(weeks.values()).sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate)).map(week => {
+                const isWeekFullyApproved = Array.from(week.employeeApprovals.values()).every(status => status === 'approved');
+                return (
+                  <Paper key={week.weekStartDate} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleWeekClick(hotelId, week)}>
+                    <Typography>Semana del {new Date(week.weekStartDate).toLocaleDateString()}</Typography>
+                    <Chip label={isWeekFullyApproved ? 'Aprobado' : 'Pendiente'} color={isWeekFullyApproved ? 'success' : 'default'} />
+                  </Paper>
+                );
+              })}
+            </AccordionDetails>
+          </Accordion>
+        );
+      })}
     </Container>
   );
 };

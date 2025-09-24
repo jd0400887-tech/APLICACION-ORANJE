@@ -6,7 +6,6 @@ import ThemeWrapper from './components/ThemeWrapper';
 
 function App() {
   const { currentUser } = useAuth();
-  {import.meta.env.DEV && console.log('App: currentUser value:', currentUser)};
 
   return (
     <ThemeContextProvider>

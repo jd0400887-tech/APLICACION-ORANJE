@@ -346,7 +346,7 @@ const AuthenticatedAppContent: React.FC = () => {
       case 'Permissions':
         return <PermissionsDashboard />;
       case 'Nómina':
-        return <NominaDashboard />;
+        return <NominaDashboard currentUser={currentUser} hotels={hotels} />;
       case 'Inventarios':
         return <InventoryDashboard />;
       default:
@@ -417,27 +417,47 @@ const AuthenticatedAppContent: React.FC = () => {
             <List>
               {menuItems.map((item) => (
                 <ListItemButton
-                  key={item.text}
-                  onClick={() => setSelectedModule(item.text)}
-                  selected={selectedModule === item.text}
+                  key={item.id}
+                  onClick={() => setSelectedModule(item.id)}
+                  selected={selectedModule === item.id}
                   sx={{
                     borderRadius: '12px',
                     mb: 1,
-                    color: theme.palette.text.primary, // Use theme text primary color
-                    backgroundColor: selectedModule === item.text ? theme.palette.action.selected : theme.palette.background.paper,
+                    padding: '10px 16px',
+                    color: theme.palette.text.secondary,
+                    backgroundColor: 'transparent',
+                    transition: 'all 0.3s ease-in-out',
+                    '& .MuiListItemIcon-root': {
+                      transition: 'color 0.3s ease-in-out',
+                    },
                     '&:hover': {
-                      backgroundColor: theme.palette.action.hover,
+                      backgroundColor: 'rgba(255, 140, 0, 0.08)',
+                      color: theme.palette.text.primary,
+                      transform: 'scale(1.02)',
+                      boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)',
+                      '& .MuiListItemIcon-root': {
+                        color: theme.palette.primary.main,
+                      },
                     },
                     '&.Mui-selected': {
-                      backgroundColor: theme.palette.action.selected,
+                      background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      color: theme.palette.primary.contrastText,
+                      boxShadow: `0px 6px 25px -5px ${theme.palette.primary.main}`,
+                      '& .MuiListItemIcon-root': {
+                        color: theme.palette.primary.contrastText,
+                      },
+                      '& .MuiListItemText-primary': {
+                        fontWeight: '600',
+                      },
                       '&:hover': {
-                        backgroundColor: theme.palette.action.hover,
+                        background: `linear-gradient(90deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                        boxShadow: `0px 8px 30px -6px ${theme.palette.primary.main}`,
                       },
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: theme.palette.primary.main }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} sx={{ textTransform: 'uppercase' }} />
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} sx={{ whiteSpace: 'normal' }} />
                 </ListItemButton>
               ))}
             </List>
