@@ -77,10 +77,15 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
 
   const handleDownloadPdf = () => {
     if (invoiceRef.current) {
+      const button = document.querySelector('#download-pdf-button');
+      if (button) button.style.display = 'none';
+
       html2canvas(invoiceRef.current, {
         scale: 2, // Increase scale for better quality
         useCORS: true, // Enable CORS if images are from external sources
       }).then(canvas => {
+        if (button) button.style.display = 'block'; // Show button again
+
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const imgWidth = 210; // A4 width in mm
@@ -129,7 +134,6 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
                   <TableCell>{item.position}</TableCell>
                   <TableCell>{item.regularHours}</TableCell>
                   <TableCell>{item.overtimeHours}</TableCell>
-                  <TableCell>{item.totalHours}</TableCell>
                   <TableCell>${item.totalEmployeePay}</TableCell>
                   <TableCell>${item.totalChargeToHotel}</TableCell>
                 </TableRow>
@@ -143,7 +147,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
           </Table>
         </TableContainer>
         <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button variant="contained" onClick={handleDownloadPdf}>Descargar PDF</Button>
+          <Button variant="contained" onClick={handleDownloadPdf} id="download-pdf-button">Descargar PDF</Button>
         </Box>
       </Paper>
     </Container>
