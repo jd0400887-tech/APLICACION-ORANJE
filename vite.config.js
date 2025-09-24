@@ -45,5 +45,8 @@ export default defineConfig({
     commonjsOptions: {
       include: [/node_modules/],
     },
+    rollupOptions: {
+      external: ['jspdf-autotable'],
+    },
   },
 })
