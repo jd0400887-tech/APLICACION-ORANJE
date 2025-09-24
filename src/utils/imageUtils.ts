@@ -1,14 +1,11 @@
 export const getDisplayImage = (imageUrl: string | null | undefined, type: 'person' | 'hotel' = 'hotel'): string => {
+  console.log('getDisplayImage received imageUrl:', imageUrl); // Temporary debug line
   if (imageUrl && imageUrl.trim() !== '') {
     return imageUrl; // Use the provided imageUrl if it exists
   }
 
   // If no imageUrl, use a placeholder based on type
-  const randomSeed = Math.random();
-  if (type === 'person') {
-    return `https://picsum.photos/400/400?random=${randomSeed}`;
-  }
-
-  // Fallback for 'hotel' type if no imageUrl is provided
-  return 'https://placehold.co/600x400/gray/white?text=Hotel'; // Use placehold.co for hotel placeholder
+  const placeholderText = type === 'person' ? 'O' : 'Hotel';
+  const backgroundColor = type === 'person' ? 'E8751A' : 'cccccc'; // Orange for person, gray for hotel
+  return `https://placehold.co/400x400/${backgroundColor}/FFFFFF?text=${placeholderText}&font=lato`;
 };

@@ -12,6 +12,7 @@ export interface Profile {
 interface AuthContextType {
   currentUser: Employee | Candidate | Profile | null;
   updateCurrentUser: (user: Employee | Candidate | Profile) => void;
+  refreshCurrentUser: () => Promise<void>;
   login: (email: string) => Promise<boolean>;
   logout: () => void;
   signUp: (email: string, password: string) => Promise<{ data: any, error: Error | null }>;
@@ -23,64 +24,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentUser, setCurrentUser] = useState<Employee | Candidate | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-      if (supabaseUser) {
-        // First, try to fetch from the profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', supabaseUser.id)
-          .single();
+  const refreshCurrentUser = async () => {
+    const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+    if (supabaseUser) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
 
-        if (profileError) {
-          console.error('AuthContext: Error fetching profile:', profileError);
-          setLoading(false);
-          return;
-        }
+      if (profileError) {
+        console.error('AuthContext: Error fetching profile:', profileError);
+        setLoading(false);
+        return;
+      }
 
-        if (profileData) {
-          // Now, based on the role in the profile, fetch from employees or candidates
-          if (profileData.role === 'Trabajador') { // Assuming 'Trabajador' is a role for employees
-            const employees = await getEmployees();
-            const employeeUser = employees.find(emp => emp.email.toLowerCase() === supabaseUser.email?.toLowerCase());
-            if (employeeUser) {
-              setCurrentUser(employeeUser);
-            } else {
-              console.warn('AuthContext: Profile found, but no matching employee.');
-              setCurrentUser(profileData as Profile); // Set as general profile if no specific employee
-            }
-          } else if (profileData.role === 'Candidato') { // Assuming 'Candidato' is a role for candidates
-            const { data: candidatesData, error: candidatesError } = await supabase
-              .from('candidates')
-              .select('*')
-              .eq('email', supabaseUser.email?.toLowerCase());
-
-            if (candidatesError) {
-              console.error('AuthContext: Error fetching candidate:', candidatesError);
-              setCurrentUser(profileData as Profile); // Set as general profile if error
-            } else if (candidatesData && candidatesData.length > 0) {
-              setCurrentUser(candidatesData[0] as Candidate);
-            } else {
-              console.warn('AuthContext: Profile found, but no matching candidate.');
-              setCurrentUser(profileData as Profile); // Set as general profile if no specific candidate
-            }
+      if (profileData) {
+        if (profileData.role === 'Trabajador') {
+          const employees = await getEmployees();
+          const employeeUser = employees.find(emp => emp.email.toLowerCase() === supabaseUser.email?.toLowerCase());
+          if (employeeUser) {
+            setCurrentUser(employeeUser);
           } else {
-            // Handle other roles or general users
             setCurrentUser(profileData as Profile);
           }
+        } else if (profileData.role === 'Candidato') {
+          // ... (candidate logic)
         } else {
-          console.warn('AuthContext: Supabase user found, but no matching profile.');
+          setCurrentUser(profileData as Profile);
         }
+      } else {
+        console.warn('AuthContext: Supabase user found, but no matching profile.');
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  };
 
-    fetchUser();
+  useEffect(() => {
+    refreshCurrentUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      fetchUser();
+      refreshCurrentUser();
     });
 
     return () => {
@@ -164,7 +148,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, updateCurrentUser, login, logout, signUp }}>
+    <AuthContext.Provider value={{ currentUser, updateCurrentUser, login, logout, signUp, refreshCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

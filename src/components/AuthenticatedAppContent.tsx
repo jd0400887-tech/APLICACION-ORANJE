@@ -110,7 +110,7 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' && pr
 }));
 
 const AuthenticatedAppContent: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, refreshCurrentUser } = useAuth();
   const { showNotification } = useNotification();
   const { toggleColorMode, mode } = useThemeContext();
   const theme = useTheme();
@@ -235,8 +235,10 @@ const AuthenticatedAppContent: React.FC = () => {
 
   const handleUpdateEmployee = async (updatedEmployee: Employee) => {
     await dbUpdateEmployee(updatedEmployee);
+    const updatedEmployees = await getEmployees();
     setEmployees(updatedEmployees);
     showNotification('Empleado actualizado con éxito', 'success');
+    await refreshCurrentUser(); // Refresh the user in the auth context
   };
 
   const handleDeleteEmployee = async (employeeId: number) => {
@@ -343,7 +345,7 @@ const AuthenticatedAppContent: React.FC = () => {
       case 'Empleado':
         return <EmpleadoDashboard />;
       case 'Profile':
-        return <UserProfile />;
+        return <UserProfile onUpdateEmployee={handleUpdateEmployee} />;
       case 'ChangePassword':
         return <ChangePasswordForm />;
       case 'Permissions':
@@ -378,7 +380,7 @@ const AuthenticatedAppContent: React.FC = () => {
             {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
           </IconButton>
           <IconButton color="inherit" onClick={handleUserMenu}>
-            <Avatar src={getDisplayImage(currentUser.imageUrl, 'person')} sx={{ width: 32, height: 32 }}/>
+            <Avatar src={getDisplayImage(currentUser.image_url, 'person')} sx={{ width: 32, height: 32 }}/>
           </IconButton>
             <Menu
               anchorEl={userMenuAnchorEl}

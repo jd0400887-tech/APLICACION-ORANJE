@@ -401,12 +401,17 @@ export const updateHotel = async (updatedHotel: Hotel): Promise<Hotel | null> =>
 };
 
 export const updateEmployee = async (updatedEmployeeData: any): Promise<void> => {
-  const { hotel, hoteles, imageUrl, ...rest } = updatedEmployeeData;
-  const updateData = { ...rest, image_url: imageUrl };
+  // Destructure properties that are not part of the 'employees' table schema to avoid errors
+  const { hotel, hoteles, ...rest } = updatedEmployeeData;
+
+  // Defensively delete the incorrect 'imageUrl' property if it exists.
+  if ('imageUrl' in rest) {
+    delete rest.imageUrl;
+  }
 
   const { error } = await supabase
     .from('employees')
-    .update(updateData)
+    .update(rest) // The 'rest' object now only contains valid fields.
     .eq('id', updatedEmployeeData.id);
 
   if (error) {
