@@ -4,6 +4,7 @@ import {
   Box, Button
 } from '@mui/material';
 import jsPDF from 'jspdf';
+import * as jspdfAutotable from 'jspdf-autotable';
 import { Hotel, Employee } from '../data/database';
 import { Attendance } from '../data/attendance';
 import { PayrollSettings } from './PayrollSettingsDialog';
@@ -109,7 +110,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
       tableRows.push(rowData);
     });
 
-    autoTable(doc, {
+    jspdfAutotable.autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: yPos,
