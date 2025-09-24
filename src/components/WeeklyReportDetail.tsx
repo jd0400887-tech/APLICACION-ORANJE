@@ -1,7 +1,6 @@
-
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Container, Typography, Paper, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, CircularProgress
+  Container, Typography, Paper, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Link
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBackOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -9,11 +8,10 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import { Hotel, Employee } from '../data/database';
 import { Attendance } from '../data/attendance';
 import { PayrollSettings } from './PayrollSettingsDialog';
-import { approveWeek } from '../data/approvals';
 
 interface ProcessedWeek {
   weekStartDate: string;
-  employeeApprovals: Map<number, 'pending' | 'approved'>; // Map<employeeId, status>
+  employeeApprovals: Map<number, 'pending' | 'approved'>;
   records: Attendance[];
 }
 
@@ -23,19 +21,19 @@ interface WeeklyReportDetailProps {
   employees: Employee[];
   onBack: () => void;
   onGenerateInvoice: () => void;
-  onRefreshDashboard: () => void; // New prop
-  // currentUser: any; // Removed currentUser prop
+  onRefreshDashboard: () => void;
+  onViewEmployeeHistory: (employeeId: number) => void; // New prop
 }
 
-const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, employees, onBack, onGenerateInvoice, onRefreshDashboard }) => {
-  // const [isApprovingAll, setIsApprovingAll] = useState(false); // Removed state
+const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, employees, onBack, onGenerateInvoice, onRefreshDashboard, onViewEmployeeHistory }) => {
 
   const reportData = useMemo(() => {
     const employeeHoursMap: Map<string, { totalHours: number, employee: Employee | undefined }> = new Map();
 
     week.records.forEach(record => {
       if (record.workHours) {
-        const entry = employeeHoursMap.get(record.employeeName) || { totalHours: 0, employee: employees.find(e => e.name === record.employeeName) };
+        const employee = employees.find(e => e.id === record.employeeId.toString());
+        const entry = employeeHoursMap.get(record.employeeName) || { totalHours: 0, employee };
         entry.totalHours += record.workHours;
         employeeHoursMap.set(record.employeeName, entry);
       }
@@ -59,7 +57,7 @@ const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, em
 
       return {
         employeeName,
-        employeeId: employee?.id, // Include employeeId for approval status lookup
+        employeeId: employee?.id,
         position: employee?.position || 'N/A',
         totalHours: totalHours.toFixed(2),
         regularHours: regularHours.toFixed(2),
@@ -72,14 +70,10 @@ const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, em
     return Array.from(week.employeeApprovals.values()).every(status => status === 'approved');
   }, [week.employeeApprovals]);
 
-  // Removed handleApproveAll function
-
-  // Removed canApproveAll memoized value
-
   return (
     <Container>
       <Button onClick={onBack} startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>
-        Volver a la Lista de Hoteles
+        Volver
       </Button>
       <Paper elevation={3} sx={{ p: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -93,7 +87,6 @@ const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, em
                 />
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-                {/* Removed Approve All Button */}
                 <Button 
                     variant="contained"
                     disabled={!isWeekFullyApproved}
@@ -117,11 +110,15 @@ const WeeklyReportDetail: React.FC<WeeklyReportDetailProps> = ({ hotel, week, em
             </TableHead>
             <TableBody>
               {reportData.map((row, index) => {
-                const employeeApprovalStatus = row.employeeId ? week.employeeApprovals.get(row.employeeId) : 'pending';
+                const employeeApprovalStatus = row.employeeId ? week.employeeApprovals.get(parseInt(row.employeeId, 10)) : 'pending';
                 const isEmployeeApproved = employeeApprovalStatus === 'approved';
                 return (
                   <TableRow key={index}>
-                    <TableCell>{row.employeeName}</TableCell>
+                    <TableCell>
+                      <Link component="button" variant="body2" onClick={() => row.employeeId && onViewEmployeeHistory(parseInt(row.employeeId, 10))}>
+                        {row.employeeName}
+                      </Link>
+                    </TableCell>
                     <TableCell>{row.position}</TableCell>
                     <TableCell align="right">{row.regularHours}</TableCell>
                     <TableCell align="right">{row.overtimeHours}</TableCell>

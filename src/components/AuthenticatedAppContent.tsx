@@ -17,6 +17,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoneyOutlined';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import PeopleIcon from '@mui/icons-material/People';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import HotelManagement from './HotelManagement';
 import HotelDashboard from './HotelDashboard';
 import RecruitmentDashboard from './RecruitmentDashboard';
@@ -34,6 +35,7 @@ import ChangePasswordForm from './ChangePasswordForm';
 import BusinessDeveloper from '../pages/BusinessDeveloper';
 import Coordinator from '../pages/Coordinator';
 import TechnicalSupport from '../pages/TechnicalSupport';
+import AnimatedBackground from './AnimatedBackground'; // Import the new component
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { QAProvider } from '../context/QAContext';
@@ -52,7 +54,10 @@ const drawerWidth = 240;
 
 const AppBar = styled(MuiAppBar, { shouldForwardProp: (prop) => prop !== 'open' && prop !== 'isEmployeeOnly' })<{open?: boolean; isEmployeeOnly: boolean;}>
 (({ theme, open, isEmployeeOnly }) => ({
-  backgroundColor: theme.palette.primary.main, // Use theme primary color
+  backgroundColor: theme.palette.background.paper,
+  color: theme.palette.text.primary,
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  boxShadow: 'none',
   transition: theme.transitions.create(['margin', 'width'], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -90,10 +95,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' && pr
   marginLeft: `-${drawerWidth}px`,
   height: '100vh',
   overflow: 'auto',
+  position: 'relative', // Keep this for positioning the background
   backgroundColor: theme.palette.background.default, // Use theme background color
-  background: 'linear-gradient(270deg, rgba(255, 140, 0, 0.1), rgba(25, 118, 210, 0.1), rgba(0, 150, 136, 0.1))',
-  backgroundSize: '600% 600%',
-  animation: 'gradientAnimation 15s ease infinite',
   ...(open && !isEmployeeOnly && {
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.easeOut,
@@ -256,13 +259,13 @@ const AuthenticatedAppContent: React.FC = () => {
 
   const handleUpdateInspection = (data: QAInspection) => {
     updateQAInspection(data);
-    setQaInspections(getQaInspections());
+    setQaInspections(getQAInspections());
     showNotification('Inspección actualizada con éxito', 'success');
   };
 
   const handleDeleteInspection = (id: number) => {
     deleteQAInspection(id);
-    setQaInspections(getQaInspections());
+    setQaInspections(getQAInspections());
     showNotification('Inspección eliminada con éxito', 'success');
   };
 
@@ -358,7 +361,7 @@ const AuthenticatedAppContent: React.FC = () => {
     <Box sx={{ display: 'flex' }}>
         <CssBaseline />
         <AppBar position="fixed" open={drawerOpen && !isEmployeeOnly} isEmployeeOnly={isEmployeeOnly}>
-          <Toolbar>
+          <Toolbar sx={{ minHeight: '56px' }}>
             {!isEmployeeOnly && (
             <IconButton
               color="inherit"
@@ -370,9 +373,7 @@ const AuthenticatedAppContent: React.FC = () => {
               <MenuIcon />
             </IconButton>
             )}
-            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: '#FFFFFF' }}>
-            Hotel Manager PWA
-          </Typography>
+            <Box sx={{ flexGrow: 1 }} /> {/* This empty box will push the following items to the right */}
           <IconButton color="inherit" onClick={toggleColorMode}> {/* ADD THIS BUTTON */}
             {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
           </IconButton>
@@ -401,19 +402,47 @@ const AuthenticatedAppContent: React.FC = () => {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              backgroundColor: theme.palette.background.paper, // Use theme background paper color
+              background: `linear-gradient(to bottom, ${theme.palette.background.paper}, ${theme.palette.action.hover})`,
+              borderRight: `1px solid ${theme.palette.divider}`,
+              boxShadow: `1px 0px 8px -1px ${theme.palette.primary.main}`,
             },
           }}
           variant="persistent"
           anchor="left"
           open={drawerOpen}
         >
-          <DrawerHeader>
+          <DrawerHeader sx={{ justifyContent: 'space-between', pl: 2.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <FiberManualRecordIcon sx={{ color: 'primary.main', fontSize: '1.6rem', filter: `drop-shadow(0 0 6px ${theme.palette.primary.main})`, mr: 0.5 }} />
+              <Typography variant="h5" sx={{ fontWeight: 'bold', letterSpacing: '2.5px' }}>
+                RANJ
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'primary.main', filter: `drop-shadow(0 0 5px ${theme.palette.primary.main})`, letterSpacing: '2.5px' }}>
+                E
+              </Typography>
+            </Box>
             <IconButton onClick={handleDrawerToggle}>
                <MenuIcon />
             </IconButton>
           </DrawerHeader>
-          <Box sx={{ overflow: 'auto', p: 1 }}>
+          <Box sx={{
+            overflow: 'auto',
+            p: 1,
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: 'transparent',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(255, 140, 0, 0.5)',
+              borderRadius: '3px',
+              transition: 'background-color 0.3s',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: 'rgba(255, 140, 0, 0.8)',
+            },
+          }}>
             <List>
               {menuItems.map((item) => (
                 <ListItemButton
@@ -465,8 +494,11 @@ const AuthenticatedAppContent: React.FC = () => {
         </MuiDrawer>
         )}
         <Main open={drawerOpen && !isEmployeeOnly} isEmployeeOnly={isEmployeeOnly}>
-          <DrawerHeader />
-          {renderContent()}
+          <AnimatedBackground />
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <DrawerHeader />
+            {renderContent()}
+          </Box>
         </Main>
       </Box>
     );
