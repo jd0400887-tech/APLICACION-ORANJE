@@ -40,12 +40,7 @@ const formatDuration = (milliseconds: number) => {
 const EmpleadoDashboard: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { currentUser: authUser, updateCurrentUser } = useAuth();
-  const [currentUser, setCurrentUser] = useState(authUser);
-
-  useEffect(() => {
-    setCurrentUser(authUser);
-  }, [authUser]);
+  const { currentUser: authUser, refreshCurrentUser } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastCheckInId, setLastCheckInId] = useState<number | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<Attendance[]>([]);
@@ -85,9 +80,9 @@ const EmpleadoDashboard: React.FC = () => {
   }, []);
 
   const fetchAttendance = async () => {
-    if (!currentUser) return;
+    if (!authUser) return;
     const allRecords = await getAttendance();
-    const userRecords = allRecords.filter(rec => rec.employeeId === currentUser.id);
+    const userRecords = allRecords.filter(rec => rec.employeeId.toString() === authUser.id);
     setAttendanceRecords(userRecords);
     const lastRecord = userRecords.find(rec => !rec.checkOut);
     if (lastRecord) {
@@ -99,12 +94,12 @@ const EmpleadoDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchAttendance();
-  }, [currentUser]);
+  }, [authUser]);
 
   const assignedHotel = useMemo(() => {
-    if (!currentUser || !currentUser.hotel) return null;
-    return allHotels.find(hotel => hotel.name === currentUser.hotel);
-  }, [currentUser, allHotels]);
+    if (!authUser || !authUser.hotel) return null;
+    return allHotels.find(hotel => hotel.name === authUser.hotel);
+  }, [authUser, allHotels]);
 
   useEffect(() => {
     if (assignedHotel) {
@@ -165,7 +160,7 @@ const EmpleadoDashboard: React.FC = () => {
   }, [userLocation, hotelLocation]);
 
   const handleCheckIn = () => {
-    if (!currentUser || currentUser.role !== 'Trabajador' || !currentUser.hotel) {
+    if (!authUser || authUser.role !== 'Trabajador' || !authUser.hotel) {
       setSnackbar({ open: true, message: 'No cumples los requisitos para hacer check-in.', severity: 'error' });
       return;
     }
@@ -175,7 +170,7 @@ const EmpleadoDashboard: React.FC = () => {
 
   const handlePictureTaken = async (selfie: string) => {
     setIsCameraOpen(false);
-    if (!currentUser || !assignedHotel) return;
+    if (!authUser || !assignedHotel) return;
 
     const selfieUrl = await uploadSelfie(selfie);
 
@@ -184,7 +179,7 @@ const EmpleadoDashboard: React.FC = () => {
       return;
     }
 
-    const newCheckInId = await checkIn(currentUser.id, assignedHotel.id, selfieUrl);
+    const newCheckInId = await checkIn(parseInt(authUser.id, 10), assignedHotel.id, selfieUrl);
     if (newCheckInId) {
       setLastCheckInId(newCheckInId);
       setSnackbar({ open: true, message: 'Check-in registrado con éxito', severity: 'success' });
@@ -192,16 +187,16 @@ const EmpleadoDashboard: React.FC = () => {
       // Manually update the attendance records to provide immediate feedback
       const newRecord: Attendance = {
         id: newCheckInId,
-        employeeId: currentUser.id,
-        employeeName: currentUser.name,
+        employeeId: parseInt(authUser.id, 10),
+        employeeName: authUser.name,
         hotelName: assignedHotel.name,
-        position: currentUser.position,
+        position: authUser.position,
         date: new Date().toISOString().split('T')[0],
         checkIn: new Date().toLocaleTimeString(),
         checkOut: null,
         workHours: null,
         status: 'ok',
-        correctionRequest: null,
+        correctionRequest: undefined,
         checkInSelfie: selfieUrl,
       };
       setAttendanceRecords([newRecord, ...attendanceRecords]);
@@ -212,8 +207,8 @@ const EmpleadoDashboard: React.FC = () => {
   };
 
   const handleCheckOut = async () => {
-    if (!currentUser) return;
-    await checkOut(currentUser.id);
+    if (!authUser) return;
+    await checkOut(parseInt(authUser.id, 10));
     setSnackbar({ open: true, message: 'Check-out registrado con éxito', severity: 'success' });
     fetchAttendance();
   };
@@ -250,17 +245,20 @@ const EmpleadoDashboard: React.FC = () => {
 
   const handleProfilePictureChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !currentUser) return;
+    if (!file || !authUser) return;
 
-    const newImageUrl = await uploadProfilePicture(file);
-
-    if (newImageUrl) {
-      const updatedEmployee = { ...currentUser, imageUrl: newImageUrl };
-      await updateEmployee(updatedEmployee);
-      updateCurrentUser(updatedEmployee);
-      setCurrentUser(updatedEmployee);
-      setSnackbar({ open: true, message: 'Foto de perfil actualizada', severity: 'success' });
-    } else {
+    try {
+      const newImageUrl = await uploadProfilePicture(file);
+      if (newImageUrl) {
+        const updatedEmployee = { ...authUser, image_url: newImageUrl };
+        await updateEmployee(updatedEmployee);
+        await refreshCurrentUser();
+        setSnackbar({ open: true, message: 'Foto de perfil actualizada', severity: 'success' });
+      } else {
+        throw new Error("La URL de la imagen no fue devuelta.");
+      }
+    } catch (error) {
+      console.error("Error al actualizar la foto de perfil:", error);
       setSnackbar({ open: true, message: 'Error al subir la imagen', severity: 'error' });
     }
   };
@@ -371,11 +369,11 @@ const EmpleadoDashboard: React.FC = () => {
               zIndex: 1,
               pt: 4,
             }}>
-              {currentUser && (
+              {authUser && (
                 <Box sx={{ position: 'relative' }}>
                   <Avatar
-                    key={currentUser.imageUrl}
-                    src={currentUser.imageUrl}
+                    key={authUser.image_url}
+                    src={authUser.image_url}
                     sx={{
                       width: isMobile ? 80 : 120,
                       height: isMobile ? 80 : 120,
@@ -421,7 +419,7 @@ const EmpleadoDashboard: React.FC = () => {
                 color="primary"
                 aria-label="check-in"
                 onClick={handleCheckIn}
-                disabled={!!lastCheckInId || !currentUser || !isInRange}
+                disabled={!!lastCheckInId || !authUser || !isInRange}
                 sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -438,7 +436,7 @@ const EmpleadoDashboard: React.FC = () => {
                 color="secondary"
                 aria-label="check-out"
                 onClick={handleCheckOut}
-                disabled={!lastCheckInId || !currentUser || !isInRange}
+                disabled={!lastCheckInId || !authUser || !isInRange}
                 sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

@@ -416,6 +416,7 @@ export const updateEmployee = async (updatedEmployeeData: any): Promise<void> =>
 
   if (error) {
     console.error('Error updating employee:', error);
+    throw error;
   }
 };
 

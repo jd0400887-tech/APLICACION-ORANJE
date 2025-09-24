@@ -234,11 +234,14 @@ const AuthenticatedAppContent: React.FC = () => {
   };
 
   const handleUpdateEmployee = async (updatedEmployee: Employee) => {
-    await dbUpdateEmployee(updatedEmployee);
-    const updatedEmployees = await getEmployees();
-    setEmployees(updatedEmployees);
-    showNotification('Empleado actualizado con éxito', 'success');
-    await refreshCurrentUser(); // Refresh the user in the auth context
+    try {
+      await dbUpdateEmployee(updatedEmployee);
+      showNotification('Empleado actualizado con éxito', 'success');
+      await refreshCurrentUser(); // Refresh the user in the auth context
+    } catch (error) {
+      console.error('Failed to update employee in database:', error);
+      showNotification('Error al guardar los cambios. Por favor, inténtalo de nuevo.', 'error');
+    }
   };
 
   const handleDeleteEmployee = async (employeeId: number) => {
