@@ -13,9 +13,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onUpdateEmployee }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarClick = () => {
-    if (currentUser?.role === 'Trabajador') {
-      fileInputRef.current?.click();
-    }
+    fileInputRef.current?.click();
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +53,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onUpdateEmployee }) => {
                 width: 120, 
                 height: 120, 
                 mb: 2, 
-                cursor: currentUser.role === 'Trabajador' ? 'pointer' : 'default',
+                cursor: 'pointer',
                 border: '3px solid',
                 borderColor: 'primary.main'
               }}
@@ -74,15 +72,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ onUpdateEmployee }) => {
               />
             )}
           </Box>
-          {currentUser.role === 'Trabajador' && (
-            <Button 
-              variant="contained" 
-              onClick={handleAvatarClick} 
-              disabled={isUploading}
-            >
-              {isUploading ? 'Subiendo...' : 'Cambiar Foto'}
-            </Button>
-          )}
+          <Button 
+            variant="contained" 
+            onClick={handleAvatarClick} 
+            disabled={isUploading}
+          >
+            {isUploading ? 'Subiendo...' : 'Cambiar Foto'}
+          </Button>
           <input 
             type="file" 
             ref={fileInputRef} 
