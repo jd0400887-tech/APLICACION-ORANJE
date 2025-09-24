@@ -4,7 +4,7 @@ import {
   Box, Button
 } from '@mui/material';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 import { Hotel, Employee } from '../data/database';
 import { Attendance } from '../data/attendance';
 import { PayrollSettings } from './PayrollSettingsDialog';
