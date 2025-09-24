@@ -12,50 +12,41 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const streamRef = useRef<MediaStream | null>(null); // Added streamRef
+    const streamRef = useRef<MediaStream | null>(null);
     const [loading, setLoading] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
 
-    // Effect to keep streamRef updated
     useEffect(() => {
       streamRef.current = stream;
     }, [stream]);
 
     const startCamera = useCallback(async () => {
-      console.log('startCamera: called', { open });
       setLoading(true);
       setCameraError(null);
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
         setStream(mediaStream);
-        console.log('startCamera: stream obtained', mediaStream);
-        setCameraError(null); // Clear any previous error
+        setCameraError(null);
       } catch (err: any) {
         console.error("Error accessing camera:", err);
         setCameraError('Error al acceder a la cámara: ' + (err.message || err));
       } finally {
         setLoading(false);
-        console.log('startCamera: finished', { loading: false });
       }
-    }, []); // Changed dependencies to empty array
+    }, []);
 
-    // Effect to set video srcObject when stream is available
     useEffect(() => {
-      console.log('useEffect [videoRef, stream]: running', { videoRefCurrent: videoRef.current, stream });
       if (videoRef.current && stream) {
         videoRef.current.srcObject = stream;
-        console.log('useEffect [videoRef, stream]: srcObject set');
       }
     }, [videoRef, stream]);
 
     const stopCamera = useCallback(() => {
-      console.log('stopCamera: called', { stream: streamRef.current }); // Used streamRef.current
-      if (streamRef.current) { // Used streamRef.current
+      if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         setStream(null);
-        console.log('stopCamera: stream stopped');
       }
-    }, []); // Changed dependencies to empty array
+    }, []);
 
     const handleCapture = () => {
       if (videoRef.current && canvasRef.current) {
@@ -73,26 +64,21 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
       }
     };
 
-    // Effect to start/stop camera when dialog opens/closes
     useEffect(() => {
-      console.log('useEffect [open]: running', { open, stream, loading, cameraError });
       if (open) {
         startCamera();
       } else {
         stopCamera();
       }
-      // Cleanup on unmount
       return () => {
-        console.log('useEffect cleanup: stopCamera');
         stopCamera();
       };
-    }, [open]); // Changed dependencies to only [open]
+    }, [open]);
 
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>Check-in Selfie</DialogTitle>
         <DialogContent sx={{ position: 'relative', minHeight: '300px' }}>
-          {console.log('Render: ', { loading, cameraError, stream })}
           {loading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <CircularProgress />
