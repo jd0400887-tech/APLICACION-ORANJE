@@ -29,14 +29,18 @@ export default defineConfig({
         ]
       }
     }),
-    commonjs(),
   ],
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    }
+  },
   server: {
     proxy: {
       '/api': {
         target: 'https://nominatim.openstreetmap.org',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^/api/, ''),
       },
     },
   },
