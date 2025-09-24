@@ -39,7 +39,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['jspdf'],
+    include: ['jspdf', 'jspdf-autotable'],
   },
   build: {
     commonjsOptions: {
