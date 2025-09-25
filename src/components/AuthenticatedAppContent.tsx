@@ -138,6 +138,8 @@ const AuthenticatedAppContent: React.FC = () => {
     };
     fetchData();
   }, []);
+
+
   const [qaInspections, setQaInspections] = useState<QAInspection[]>(getQAInspections());
 
   const handleUserMenu = (event: any) => setUserMenuAnchorEl(event.currentTarget);

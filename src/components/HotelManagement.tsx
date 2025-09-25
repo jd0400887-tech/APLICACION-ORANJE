@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -17,32 +17,12 @@ import {
   ButtonGroup,
   useTheme,
   CardActions,
-  Autocomplete,
   CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/AddOutlined';
 import { Hotel, uploadHotelImage } from '../data/database';
 import { getDisplayImage } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
-import throttle from 'lodash/throttle';
-import { useRef } from 'react';
-
-interface PlaceSuggestion {
-  place_id: string;
-  display_name: string;
-  lat: string;
-  lon: string;
-  address: {
-    road?: string;
-    house_number?: string;
-    city?: string;
-    town?: string;
-    village?: string;
-    state?: string;
-    postcode?: string;
-    country?: string;
-  };
-}
 
 interface HotelManagementProps {
   hotels: Hotel[];
@@ -109,12 +89,6 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
     imageUrl: '',
     status: 'Prospect',
     address: '',
-    street: '',
-    houseNumber: '',
-    postcode: '',
-    state: '',
-    country: '',
-    city: '',
     generalManager: '',
     contact: '',
     email: '',
@@ -122,9 +96,6 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
     longitude: undefined,
   });
   const [view, setView] = useState<'Client' | 'Prospect'>('Client');
-  const [inputValue, setInputValue] = useState('');
-  const [options, setOptions] = useState<readonly PlaceSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
   const [geolocationLoading, setGeolocationLoading] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -147,43 +118,6 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
     }
     setIsUploading(false);
   };
-
-  const fetchSuggestions = useMemo(
-    () =>
-      throttle((input: string, callback: (results: PlaceSuggestion[]) => void) => {
-        (async () => {
-          if (input.length < 3) {
-            callback([]);
-            return;
-          }
-          setLoading(true);
-          const response = await fetch(`/api/search?q=${encodeURIComponent(input)}&format=json&addressdetails=1`);
-          const data = await response.json();
-          callback(data || []);
-          setLoading(false);
-        })();
-      }, 400),
-    [],
-  );
-
-  useEffect(() => {
-    let active = true;
-
-    if (inputValue === '') {
-      setOptions([]);
-      return undefined;
-    }
-
-    fetchSuggestions(inputValue, (results) => {
-      if (active) {
-        setOptions(results);
-      }
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [inputValue, fetchSuggestions]);
 
   const { clientHotels, prospectHotels } = useMemo(() => {
     const clients = hotels.filter(h => h.status === 'Client');
@@ -214,15 +148,11 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
       imageUrl: '',
       status: 'Prospect',
       address: '',
-      street: '',
-      houseNumber: '',
-      postcode: '',
-      state: '',
-      country: '',
-      city: '',
       generalManager: '',
       contact: '',
       email: '',
+      latitude: undefined,
+      longitude: undefined,
     });
   };
 
@@ -259,15 +189,14 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
 
   const handleDeleteHotel = (hotelId: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este hotel?')) {
-      onDeleteHotel(hotelId); // Call the prop function
+      onDeleteHotel(hotelId);
     }
   };
 
   const handleAddHotel = () => {
     if (
       newHotel.name &&
-      newHotel.street && // Validate street instead of general address
-      newHotel.city &&
+      newHotel.address &&
       newHotel.generalManager &&
       newHotel.contact &&
       newHotel.email
@@ -309,7 +238,6 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
         <HotelGrid hotels={prospectHotels} onSelectHotel={onSelectHotel} currentUser={currentUser} handleDeleteHotel={handleDeleteHotel} onUpdateStatus={onUpdateStatus} mainButtonStyles={mainButtonStyles} />
       )}
 
-      {/* Add Hotel Dialog */}
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Añadir Nuevo Hotel</DialogTitle>
         <DialogContent>
@@ -358,61 +286,15 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
             <MenuItem value="Client">Cliente</MenuItem>
             <MenuItem value="Prospect">Prospecto</MenuItem>
           </TextField>
-          <Autocomplete
-            id="address-autocomplete-add"
-            sx={{ mt: 1, mb: 1 }}
-            getOptionLabel={(option) => typeof option === 'string' ? option : option.display_name}
-            filterOptions={(x) => x}
-            options={options}
-            autoComplete
-            includeInputInList
-            filterSelectedOptions
-            value={inputValue}
-            noOptionsText="No locations found"
-            loading={loading}
-            onChange={(event: any, newValue: PlaceSuggestion | string | null) => {
-              setOptions([]);
-              if (typeof newValue === 'object' && newValue !== null) {
-                const street = newValue.address.road || newValue.address.footway || newValue.address.pedestrian || '';
-                const houseNumber = newValue.address.house_number || '';
-                const postcode = newValue.address.postcode || '';
-                const state = newValue.address.state || '';
-                const country = newValue.address.country || '';
-                const city = newValue.address.city || newValue.address.town || newValue.address.village || '';
-                setNewHotel({
-                  ...newHotel,
-                  address: newValue.display_name, // Store full display name for general reference
-                  street: street,
-                  houseNumber: houseNumber,
-                  postcode: postcode,
-                  state: state,
-                  country: country,
-                  city: city,
-                  latitude: parseFloat(newValue.lat),
-                  longitude: parseFloat(newValue.lon),
-                });
-                setInputValue(newValue.display_name);
-              }
-            }}
-            onInputChange={(event, newInputValue) => {
-              setInputValue(newInputValue);
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Dirección"
-                fullWidth
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
+          <TextField
+            margin="dense"
+            name="address"
+            label="Dirección"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={newHotel.address}
+            onChange={handleChange}
           />
           <Button
             variant="outlined"

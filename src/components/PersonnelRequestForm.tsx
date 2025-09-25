@@ -9,7 +9,7 @@ import {
   Grid,
   MenuItem,
 } from '@mui/material';
-import { JOB_POSITIONS } from '../data/constants';
+import { workerPositions } from '../data/positions';
 
 function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewRequest }) {
   const [formData, setFormData] = useState({
@@ -29,7 +29,7 @@ function PersonnelRequestForm({ open, onClose, hotelName, hotelId, onAddNewReque
   });
 
   const englishLevels = ['Básico', 'Intermedio', 'Avanzado', 'Nativo'];
-  const positions = JOB_POSITIONS;
+  const positions = workerPositions;
 
   const handleChange = (e) => {
     const { name, value } = e.target;

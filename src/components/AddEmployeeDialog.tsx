@@ -4,6 +4,7 @@ import {
 } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import { Employee } from '../data/database';
+import { workerPositions } from '../data/positions';
 
 interface AddEmployeeDialogProps {
   open: boolean;
@@ -11,7 +12,18 @@ interface AddEmployeeDialogProps {
   onSave: (employee: Employee) => void;
 }
 
-const roles = ['Admin', 'Hotel Manager', 'Reclutador', 'QA Inspector', 'Contador', 'Trabajador'];
+const roles = [
+  'Admin',
+  'Business Developer',
+  'Coordinador',
+  'Soporte Técnico',
+  'Hotel Manager',
+  'Reclutador',
+  'QA Inspector',
+  'Contador',
+  'Trabajador',
+  'Empleado'
+];
 
 const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onClose, onSave }) => {
   const [email, setEmail] = useState('');
@@ -114,7 +126,11 @@ const AddEmployeeDialog: React.FC<AddEmployeeDialogProps> = ({ open, onClose, on
             <TextField margin="dense" name="name" label="Nombre" type="text" fullWidth variant="standard" value={name} onChange={(e) => setName(e.target.value)} required />
           </Grid>
           <Grid item xs={12} sm={6}>
-            <TextField margin="dense" name="position" label="Posición" type="text" fullWidth variant="standard" value={position} onChange={(e) => setPosition(e.target.value)} required />
+            <TextField select margin="dense" name="position" label="Posición" fullWidth variant="standard" value={position} onChange={(e) => setPosition(e.target.value)} required>
+              {workerPositions.map((option) => (
+                <MenuItem key={option} value={option}>{option}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField select margin="dense" name="role" label="Rol" fullWidth variant="standard" value={role} onChange={(e) => setRole(e.target.value)} required>

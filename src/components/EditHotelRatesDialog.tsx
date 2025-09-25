@@ -7,7 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Hotel } from '../data/database';
-import { JOB_POSITIONS } from '../data/constants';
+import { workerPositions } from '../data/positions';
 
 interface EditHotelRatesDialogProps {
   open: boolean;
@@ -105,7 +105,7 @@ function EditHotelRatesDialog({ open, onClose, hotel, onSave }: EditHotelRatesDi
                 label="Posición"
                 onChange={(e) => handleChangeRate(index, 'position', e.target.value)}
               >
-                {JOB_POSITIONS.map(pos => (
+                {workerPositions.map(pos => (
                   <MenuItem key={pos} value={pos}>{pos}</MenuItem>
                 ))}
               </Select>

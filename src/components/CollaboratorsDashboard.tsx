@@ -8,9 +8,21 @@ import { useAuth } from '../context/AuthContext';
 import { getDisplayImage } from '../utils/imageUtils';
 import * as XLSX from 'xlsx';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import { workerPositions } from '../data/positions';
 import AddEmployeeDialog from './AddEmployeeDialog';
 
-const roles = ['Admin', 'Hotel Manager', 'Reclutador', 'QA Inspector', 'Contador', 'Trabajador'];
+const roles = [
+  'Admin',
+  'Business Developer',
+  'Coordinador',
+  'Soporte Técnico',
+  'Hotel Manager',
+  'Reclutador',
+  'QA Inspector',
+  'Contador',
+  'Trabajador',
+  'Empleado'
+];
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -54,7 +66,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ open, onClose, 
           <Grid item xs={12} sm={6}><TextField margin="dense" name="city" label="Ciudad" type="text" fullWidth variant="standard" value={editedEmployee.city} onChange={handleChange} /></Grid>
           <Grid item xs={12} sm={6}><TextField margin="dense" name="zip" label="Código Postal" type="text" fullWidth variant="standard" value={editedEmployee.zip} onChange={handleChange} /></Grid>
           <Grid item xs={12}><TextField margin="dense" name="address" label="Dirección" type="text" fullWidth variant="standard" value={editedEmployee.address} onChange={handleChange} /></Grid>
-          <Grid item xs={12}><TextField margin="dense" name="position" label="Posición" type="text" fullWidth variant="standard" value={editedEmployee.position} onChange={handleChange} /></Grid>
+          <Grid item xs={12}><TextField select margin="dense" name="position" label="Posición" fullWidth variant="standard" value={editedEmployee.position} onChange={handleChange}>{workerPositions.map((option) => (<MenuItem key={option} value={option}>{option}</MenuItem>))}</TextField></Grid>
           <Grid item xs={12}><TextField margin="dense" name="image_url" label="URL de Imagen" type="text" fullWidth variant="standard" value={editedEmployee.image_url} onChange={handleChange} /></Grid>
           <Grid item xs={12}><FormControlLabel control={<Switch checked={editedEmployee.isBlacklisted} onChange={(e) => setEditedEmployee((prev) => (prev ? { ...prev, isBlacklisted: e.target.checked } : null))} name="isBlacklisted" color="secondary" />} label="Marcar como en Lista Negra" /></Grid>
           <Grid item xs={12}><TextField select margin="dense" name="role" label="Rol" fullWidth variant="standard" value={editedEmployee.role} onChange={handleChange}>{roles.map((option) => (<MenuItem key={option} value={option}>{option}</MenuItem>))}</TextField></Grid>

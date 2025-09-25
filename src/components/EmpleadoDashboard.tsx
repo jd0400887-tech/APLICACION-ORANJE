@@ -156,8 +156,18 @@ const EmpleadoDashboard: React.FC = () => {
       const dist = getDistance(userLocation.latitude, userLocation.longitude, hotelLocation.latitude, hotelLocation.longitude);
       setDistance(dist);
       setIsInRange(dist <= GEOFENCE_RADIUS);
+      console.log('userLocation', userLocation);
+      console.log('hotelLocation', hotelLocation);
+      console.log('distance', dist);
+      console.log('isInRange', dist <= GEOFENCE_RADIUS);
     }
   }, [userLocation, hotelLocation]);
+
+  useEffect(() => {
+    console.log('lastCheckInId', lastCheckInId);
+    console.log('authUser', authUser);
+    console.log('isInRange', isInRange);
+  }, [lastCheckInId, authUser, isInRange]);
 
   const handleCheckIn = () => {
     if (!authUser || authUser.role !== 'Trabajador' || !authUser.hotel) {
