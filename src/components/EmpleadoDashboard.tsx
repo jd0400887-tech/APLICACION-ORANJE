@@ -63,6 +63,13 @@ const EmpleadoDashboard: React.FC = () => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
   const [selectedTab, setSelectedTab] = useState(0);
+  const [isCheckInDisabled, setIsCheckInDisabled] = useState(true);
+  const [isCheckOutDisabled, setIsCheckOutDisabled] = useState(true);
+
+  useEffect(() => {
+    setIsCheckInDisabled(!!lastCheckInId || !authUser || !isInRange);
+    setIsCheckOutDisabled(!lastCheckInId || !authUser || !isInRange);
+  }, [lastCheckInId, authUser, isInRange]);
 
   const GEOFENCE_RADIUS = 200; // meters
 
@@ -156,25 +163,14 @@ const EmpleadoDashboard: React.FC = () => {
       const dist = getDistance(userLocation.latitude, userLocation.longitude, hotelLocation.latitude, hotelLocation.longitude);
       setDistance(dist);
       setIsInRange(dist <= GEOFENCE_RADIUS);
-      console.log('userLocation', userLocation);
-      console.log('hotelLocation', hotelLocation);
-      console.log('distance', dist);
-      console.log('isInRange', dist <= GEOFENCE_RADIUS);
     }
   }, [userLocation, hotelLocation]);
-
-  useEffect(() => {
-    console.log('lastCheckInId', lastCheckInId);
-    console.log('authUser', authUser);
-    console.log('isInRange', isInRange);
-  }, [lastCheckInId, authUser, isInRange]);
 
   const handleCheckIn = () => {
     if (!authUser || authUser.role !== 'Trabajador' || !authUser.hotel) {
       setSnackbar({ open: true, message: 'No cumples los requisitos para hacer check-in.', severity: 'error' });
       return;
     }
-    console.log('handleCheckIn: Setting isCameraOpen to true'); // Added for debugging
     setIsCameraOpen(true);
   };
 
@@ -429,7 +425,7 @@ const EmpleadoDashboard: React.FC = () => {
                 color="primary"
                 aria-label="check-in"
                 onClick={handleCheckIn}
-                disabled={!!lastCheckInId || !authUser || !isInRange}
+                disabled={isCheckInDisabled}
                 sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -446,7 +442,7 @@ const EmpleadoDashboard: React.FC = () => {
                 color="secondary"
                 aria-label="check-out"
                 onClick={handleCheckOut}
-                disabled={!lastCheckInId || !authUser || !isInRange}
+                disabled={isCheckOutDisabled}
                 sx={{ width: isMobile ? 80 : 100, height: isMobile ? 80 : 100 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
