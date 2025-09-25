@@ -98,6 +98,11 @@ const HotelCheckinView: React.FC<HotelCheckinViewProps> = ({
               disabled={!!lastCheckInId || !currentUser || !isInRange}
               startIcon={<LoginIcon />}
               fullWidth
+              sx={{
+                "&:not(:disabled)": {
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.25)",
+                },
+              }}
             >
               Check-in
             </Button>

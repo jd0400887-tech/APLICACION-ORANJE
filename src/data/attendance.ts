@@ -86,13 +86,13 @@ export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: st
   return data.id;
 };
 
-export const checkOut = async (employeeId: string): Promise<void> => {
+export const checkOut = async (employeeId: string, accumulatedBreakTime: number = 0): Promise<void> => {
   const today = new Date().toISOString().split('T')[0];
 
-  // Find the open check-in for today
+  // Find the open check-in for today, and also get the check_in time
   const { data: entry, error: findError } = await supabase
     .from('attendance')
-    .select('id')
+    .select('id, check_in') // Select check_in time as well
     .eq('employee_id', employeeId)
     .gte('check_in', `${today}T00:00:00Z`)
     .lte('check_in', `${today}T23:59:59Z`)
@@ -104,10 +104,24 @@ export const checkOut = async (employeeId: string): Promise<void> => {
     return;
   }
 
-  // Update the entry with the check-out time
+  const checkOutTime = new Date();
+  const checkInTime = new Date(entry.check_in);
+
+  // Calculate raw work duration
+  const rawWorkDurationMs = checkOutTime.getTime() - checkInTime.getTime();
+
+  // Calculate net work duration by subtracting accumulated break time
+  const netWorkDurationMs = rawWorkDurationMs - accumulatedBreakTime;
+  const netWorkHours = netWorkDurationMs / 3600000; // Convert milliseconds to hours
+
+  // Update the entry with the check-out time, net work hours, and total break time
   const { error: updateError } = await supabase
     .from('attendance')
-    .update({ check_out: new Date().toISOString() })
+    .update({
+      check_out: checkOutTime.toISOString(),
+      work_hours: netWorkHours,
+      total_break_time: accumulatedBreakTime,
+    })
     .eq('id', entry.id);
 
   if (updateError) {

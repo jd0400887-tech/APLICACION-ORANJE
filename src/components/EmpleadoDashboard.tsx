@@ -16,6 +16,8 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import { useAuth } from '../context/AuthContext';
 import { getAttendance, checkIn, checkOut, Attendance, requestCorrection, uploadSelfie } from '../data/attendance';
 import { getHotels, Hotel, uploadProfilePicture, updateEmployee } from '../data/database';
@@ -115,6 +117,9 @@ const EmpleadoDashboard: React.FC = () => {
   const [isCheckInDisabled, setIsCheckInDisabled] = useState(true);
   const [isCheckOutDisabled, setIsCheckOutDisabled] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isBreaking, setIsBreaking] = useState(false);
+  const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
+  const [accumulatedBreakTime, setAccumulatedBreakTime] = useState(0); // in milliseconds
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
@@ -123,10 +128,26 @@ const EmpleadoDashboard: React.FC = () => {
     handleMenuClose();
   };
 
+  const handleStartBreak = () => {
+    setIsBreaking(true);
+    setBreakStartTime(new Date());
+    setSnackbar({ open: true, message: 'Descanso iniciado.', severity: 'info' });
+  };
+
+  const handleEndBreak = () => {
+    if (breakStartTime) {
+      const breakDuration = new Date().getTime() - breakStartTime.getTime();
+      setAccumulatedBreakTime(prev => prev + breakDuration);
+      setIsBreaking(false);
+      setBreakStartTime(null);
+      setSnackbar({ open: true, message: 'Descanso finalizado.', severity: 'info' });
+    }
+  };
+
   useEffect(() => {
-    setIsCheckInDisabled(!!lastCheckInId || !authUser || !isInRange);
-    setIsCheckOutDisabled(!lastCheckInId || !authUser || !isInRange);
-  }, [lastCheckInId, authUser, isInRange]);
+    setIsCheckInDisabled(!!lastCheckInId || !authUser || !isInRange || isBreaking);
+    setIsCheckOutDisabled(!lastCheckInId || !authUser || !isInRange || isBreaking);
+  }, [lastCheckInId, authUser, isInRange, isBreaking]);
 
   const GEOFENCE_RADIUS = 200;
 
@@ -230,9 +251,20 @@ const EmpleadoDashboard: React.FC = () => {
 
   const handleCheckOut = async () => {
     if (!authUser) return;
-    await checkOut(authUser.id);
+    // Ensure any active break is ended before check-out
+    if (isBreaking && breakStartTime) {
+      const breakDuration = new Date().getTime() - breakStartTime.getTime();
+      setAccumulatedBreakTime(prev => prev + breakDuration);
+      setIsBreaking(false);
+      setBreakStartTime(null);
+    }
+
+    // Pass accumulatedBreakTime to the checkOut function
+    // The checkOut function in ../data/attendance.ts will need to be updated to accept this
+    await checkOut(authUser.id, accumulatedBreakTime); // Assuming checkOut can take accumulatedBreakTime
     setSnackbar({ open: true, message: 'Check-out registrado con éxito', severity: 'success' });
     fetchAttendance();
+    setAccumulatedBreakTime(0); // Reset accumulated break time after successful check-out
   };
 
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
@@ -420,70 +452,130 @@ const EmpleadoDashboard: React.FC = () => {
             </Box>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative', zIndex: 1, pb: 4, mt: 4 }}>
-              <Box sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.4)', // Increased opacity, darker background
-                backdropFilter: 'blur(10px)',
-                padding: '10px 20px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                mb: 2
-              }}>
-                <Typography variant={isMobile ? 'h5' : 'h4'} sx={{
-                  fontWeight: 'bold',
-                  fontFamily: 'monospace',
-                  color: 'white',
-                }}>
+              <Box sx={
+                {
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)', // Increased opacity, darker background
+                  backdropFilter: 'blur(10px)',
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  mb: 2
+                }
+              }>
+                <Typography variant={isMobile ? 'h5' : 'h4'} sx={
+                  {
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
+                    color: 'white',
+                  }
+                }>
                   {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                 </Typography>
               </Box>
 
-                {lastCheckInId ? (
-                <Fab
-                  color="default" // Change to default color
-                  aria-label="check-out"
-                  onClick={handleCheckOut}
-                  disabled={isCheckOutDisabled}
-                  sx={{
-                    width: 120,
-                    height: 120,
-                    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Frosted glass background, darker
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)', // White border
-                    color: 'white', // White text/icon
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.25)', // Slightly more opaque on hover
-                    },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <LogoutIcon sx={{ color: 'white' }} />
-                    <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-out</Typography>
-                  </Box>
-                </Fab>
-                ) : (
-                <Fab
-                  color="default" // Change to default color
-                  aria-label="check-in"
-                  onClick={handleCheckIn}
-                  disabled={isCheckInDisabled}
-                  sx={{
-                    width: 120,
-                    height: 120,
-                    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Frosted glass background, darker
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)', // White border
-                    color: 'white', // White text/icon
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.25)', // Slightly more opaque on hover
-                    },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <LoginIcon sx={{ color: 'white' }} />
-                    <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-in</Typography>
-                  </Box>
-                </Fab>
-                )}
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                  {lastCheckInId ? (
+                  <Fab
+                    color="default"
+                    aria-label="check-out"
+                    onClick={handleCheckOut}
+                    disabled={isCheckOutDisabled}
+                    sx={
+                      {
+                        width: 120,
+                        height: 120,
+                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                        },
+                      }
+                    }
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <LogoutIcon sx={{ color: 'white' }} />
+                      <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-out</Typography>
+                    </Box>
+                  </Fab>
+                  ) : (
+                  <Fab
+                    color="default"
+                    aria-label="check-in"
+                    onClick={handleCheckIn}
+                    disabled={isCheckInDisabled}
+                    sx={
+                      {
+                        width: 120,
+                        height: 120,
+                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                        },
+                      }
+                    }
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <LoginIcon sx={{ color: 'white' }} />
+                      <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-in</Typography>
+                    </Box>
+                  </Fab>
+                  )}
+
+                  {lastCheckInId && !isBreaking ? (
+                    <Fab
+                      color="default"
+                      aria-label="start-break"
+                      onClick={handleStartBreak}
+                      sx={
+                        {
+                          width: 120,
+                          height: 120,
+                          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                          },
+                        }
+                      }
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <PauseCircleOutlineIcon sx={{ color: 'white' }} />
+                        <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Descanso</Typography>
+                      </Box>
+                    </Fab>
+                  ) : isBreaking && (
+                    <Fab
+                      color="warning"
+                      aria-label="end-break"
+                      onClick={handleEndBreak}
+                      sx={
+                        {
+                          width: 120,
+                          height: 120,
+                          backgroundColor: 'rgba(255, 140, 0, 0.6)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 140, 0, 0.8)',
+                          },
+                        }
+                      }
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <PlayCircleOutlineIcon sx={{ color: 'white' }} />
+                        <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Fin Descanso</Typography>
+                      </Box>
+                    </Fab>
+                  )}
+                </Stack>
               </Box>
             </Box>
           </Fade>
