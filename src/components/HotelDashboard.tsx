@@ -11,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  CircularProgress,
   useTheme
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBackOutlined';
@@ -19,7 +20,8 @@ import PersonnelRequestForm from './PersonnelRequestForm';
 import IncidentAlertForm from './IncidentAlertForm';
 import PayrollView from './PayrollView';
 import EditHotelForm from './EditHotelForm';
-import { Employee, Hotel, updateHotel } from '../data/database';
+import { Employee, Hotel, updateHotel, uploadHotelImage } from '../data/database';
+import { useRef } from 'react';
 
 interface HotelDashboardProps {
   hotel: Hotel;
@@ -36,6 +38,27 @@ function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employ
   const [openIncidentAlert, setOpenIncidentAlert] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [view, setView] = useState('main');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const newImageUrl = await uploadHotelImage(file);
+      if (newImageUrl) {
+        const updatedHotelData = { ...hotel, imageUrl: newImageUrl };
+        await handleSaveHotel(updatedHotelData);
+      } else {
+        console.error("Failed to upload image.");
+      }
+    } catch (error) {
+      console.error("Error during file upload process:", error);
+    }
+    setIsUploading(false);
+  };
 
   const assignedPersonnel = useMemo(() => {
     return employees.filter(emp => emp.hotel === hotel.name && emp.status === 'Assigned');
@@ -173,6 +196,21 @@ function HotelDashboard({ hotel, onBack, onAddNewRequest, onHotelUpdated, employ
         >
           Editar Hotel
         </Button>
+        <Button
+          variant="contained"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          sx={{ ml: 2 }}
+        >
+          {isUploading ? <CircularProgress size={24} /> : 'Cambiar Imagen'}
+        </Button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          hidden
+          accept="image/*"
+          onChange={handleFileChange}
+        />
       </Box>
       <Typography variant="h4" gutterBottom>
         Dashboard para: {hotel.name}

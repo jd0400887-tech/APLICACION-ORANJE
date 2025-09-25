@@ -497,6 +497,25 @@ export const uploadProfilePicture = async (file: File): Promise<string | null> =
   return data.publicUrl;
 };
 
+export const uploadHotelImage = async (file: File): Promise<string | null> => {
+  const filePath = `public/${Date.now()}-${file.name}`;
+
+  const { error } = await supabase.storage
+    .from('hotel-images')
+    .upload(filePath, file, { contentType: file.type, upsert: false });
+
+  if (error) {
+    console.error('Error uploading hotel image:', error);
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('hotel-images')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
 // --- Unmigrated Functions ---
 
 export const updateInventory = (itemId: number, newQuantity: number): void => {

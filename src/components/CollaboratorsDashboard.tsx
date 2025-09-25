@@ -55,7 +55,7 @@ const EditEmployeeDialog: React.FC<EditEmployeeDialogProps> = ({ open, onClose, 
           <Grid item xs={12} sm={6}><TextField margin="dense" name="zip" label="Código Postal" type="text" fullWidth variant="standard" value={editedEmployee.zip} onChange={handleChange} /></Grid>
           <Grid item xs={12}><TextField margin="dense" name="address" label="Dirección" type="text" fullWidth variant="standard" value={editedEmployee.address} onChange={handleChange} /></Grid>
           <Grid item xs={12}><TextField margin="dense" name="position" label="Posición" type="text" fullWidth variant="standard" value={editedEmployee.position} onChange={handleChange} /></Grid>
-          <Grid item xs={12}><TextField margin="dense" name="imageUrl" label="URL de Imagen" type="text" fullWidth variant="standard" value={editedEmployee.imageUrl} onChange={handleChange} /></Grid>
+          <Grid item xs={12}><TextField margin="dense" name="image_url" label="URL de Imagen" type="text" fullWidth variant="standard" value={editedEmployee.image_url} onChange={handleChange} /></Grid>
           <Grid item xs={12}><FormControlLabel control={<Switch checked={editedEmployee.isBlacklisted} onChange={(e) => setEditedEmployee((prev) => (prev ? { ...prev, isBlacklisted: e.target.checked } : null))} name="isBlacklisted" color="secondary" />} label="Marcar como en Lista Negra" /></Grid>
           <Grid item xs={12}><TextField select margin="dense" name="role" label="Rol" fullWidth variant="standard" value={editedEmployee.role} onChange={handleChange}>{roles.map((option) => (<MenuItem key={option} value={option}>{option}</MenuItem>))}</TextField></Grid>
         </Grid>
@@ -199,11 +199,11 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
         <Chip label="Asignados" clickable color={selectedStatusFilter === 'Assigned' ? 'primary' : 'default'} onClick={() => setSelectedStatusFilter('Assigned')} />
       </Box>
 
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
         {filteredEmployees.map((employee) => (
-          <Grid key={employee.id} item xs={12} sm={6} md={4} lg={3}>
+          <Box key={employee.id}>
             <Card sx={{ textAlign: 'center', backgroundColor: employee.isBlacklisted ? '#424242' : '#ffffff', color: employee.isBlacklisted ? '#ffffff' : '#000000' }}>
-              <Box sx={{ pt: 3 }}><Avatar alt={`Foto de ${employee.name}`} src={getDisplayImage(employee.imageUrl, 'person')} sx={{ width: 100, height: 100, margin: 'auto' }} /></Box>
+              <Box sx={{ pt: 3 }}><Avatar alt={`Foto de ${employee.name}`} src={getDisplayImage(employee.image_url, 'person')} sx={{ width: 100, height: 100, margin: 'auto' }} /></Box>
               <CardContent>
                 <Typography gutterBottom variant="h6" component="div">{employee.name}</Typography>
                 <Typography variant="body2" color="text.primary" component="p">{employee.position}</Typography>
@@ -218,9 +218,9 @@ function CollaboratorsDashboard({ employees, onUpdateEmployee, onDeleteEmployee,
                 {currentUser && currentUser.role === 'Admin' && (<Button size="small" variant="contained" color="secondary" onClick={() => handleDeleteClick(employee.id)}>Eliminar</Button>)}
               </CardActions>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
 
       <EditEmployeeDialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} employee={selectedEmployee} onSave={handleSaveEmployee} />
       <AssignUniformDialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} employee={selectedEmployee} onAssign={handleAssignUniform} />

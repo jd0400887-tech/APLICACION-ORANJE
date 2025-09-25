@@ -76,9 +76,9 @@ function CandidatesDashboard({ candidates, onPromoteCandidateWithCredentials }: 
       <Typography variant="h4" gutterBottom>
         Módulo de Candidatos
       </Typography>
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
         {candidates.map((candidate) => (
-          <Grid key={candidate.id} xs={12} sm={6} md={4}>
+          <Box key={candidate.id}>
             <Card 
               sx={{ textAlign: 'center', cursor: 'pointer' }} // Added cursor and click handler
               onClick={() => handleOpenDetailsDialog(candidate)}
@@ -111,9 +111,9 @@ function CandidatesDashboard({ candidates, onPromoteCandidateWithCredentials }: 
                 </Button>
               </CardActions>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
       {candidates.length === 0 && (
         <Typography sx={{ mt: 4, textAlign: 'center' }}>
           No hay candidatos disponibles en este momento.

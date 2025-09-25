@@ -21,10 +21,11 @@ import {
   CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/AddOutlined';
-import { Hotel } from '../data/database';
+import { Hotel, uploadHotelImage } from '../data/database';
 import { getDisplayImage } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import throttle from 'lodash/throttle';
+import { useRef } from 'react';
 
 interface PlaceSuggestion {
   place_id: string;
@@ -52,9 +53,9 @@ interface HotelManagementProps {
 }
 
 const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, onUpdateStatus, mainButtonStyles }) => (
-    <Grid container spacing={3} sx={{ mt: 2 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', mt: 2 }}>
       {hotels.map((hotel) => (
-        <Grid key={hotel.id} xs={12} sm={6} md={4}>
+        <Box key={hotel.id}>
           <Card>
             <CardActionArea onClick={() => onSelectHotel(hotel)}>
               <CardMedia
@@ -94,9 +95,9 @@ const HotelGrid = ({ hotels, onSelectHotel, currentUser, handleDeleteHotel, onUp
               )}
             </CardActions>
           </Card>
-        </Grid>
+        </Box>
       ))}
-    </Grid>
+    </Box>
 );
 
 function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHotel, onUpdateStatus }: HotelManagementProps) {
@@ -126,6 +127,26 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
   const [loading, setLoading] = useState(false);
   const [geolocationLoading, setGeolocationLoading] = useState(false);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const newImageUrl = await uploadHotelImage(file);
+      if (newImageUrl) {
+        setNewHotel((prev) => ({ ...prev, imageUrl: newImageUrl }));
+      } else {
+        console.error("Failed to upload image.");
+      }
+    } catch (error) {
+      console.error("Error during file upload process:", error);
+    }
+    setIsUploading(false);
+  };
 
   const fetchSuggestions = useMemo(
     () =>
@@ -303,16 +324,27 @@ function HotelManagement({ hotels = [], onSelectHotel, onAddNewHotel, onDeleteHo
             value={newHotel.name}
             onChange={handleChange}
           />
-          <TextField
-            margin="dense"
-            name="imageUrl"
-            label="URL de la Imagen"
-            type="text"
-            fullWidth
-            variant="standard"
-            value={newHotel.imageUrl}
-            onChange={handleChange}
-          />
+          <Box sx={{ my: 2 }}>
+            <Button 
+              variant="contained" 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={isUploading}
+            >
+              {isUploading ? <CircularProgress size={24} /> : 'Subir Imagen'}
+            </Button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              hidden 
+              accept="image/*" 
+              onChange={handleFileChange} 
+            />
+            {newHotel.imageUrl && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Imagen seleccionada: {newHotel.imageUrl}
+              </Typography>
+            )}
+          </Box>
           <TextField
             select
             margin="dense"
