@@ -156,18 +156,8 @@ const EmpleadoDashboard: React.FC = () => {
       const dist = getDistance(userLocation.latitude, userLocation.longitude, hotelLocation.latitude, hotelLocation.longitude);
       setDistance(dist);
       setIsInRange(dist <= GEOFENCE_RADIUS);
-      console.log('userLocation', userLocation);
-      console.log('hotelLocation', hotelLocation);
-      console.log('distance', dist);
-      console.log('isInRange', dist <= GEOFENCE_RADIUS);
     }
   }, [userLocation, hotelLocation]);
-
-  useEffect(() => {
-    console.log('lastCheckInId', lastCheckInId);
-    console.log('authUser', authUser);
-    console.log('isInRange', isInRange);
-  }, [lastCheckInId, authUser, isInRange]);
 
   const handleCheckIn = () => {
     if (!authUser || authUser.role !== 'Trabajador' || !authUser.hotel) {
@@ -189,7 +179,7 @@ const EmpleadoDashboard: React.FC = () => {
       return;
     }
 
-    const newCheckInId = await checkIn(parseInt(authUser.id, 10), assignedHotel.id, selfieUrl);
+    const newCheckInId = await checkIn(authUser.id, assignedHotel.id, selfieUrl);
     if (newCheckInId) {
       setLastCheckInId(newCheckInId);
       setSnackbar({ open: true, message: 'Check-in registrado con éxito', severity: 'success' });
@@ -197,7 +187,7 @@ const EmpleadoDashboard: React.FC = () => {
       // Manually update the attendance records to provide immediate feedback
       const newRecord: Attendance = {
         id: newCheckInId,
-        employeeId: parseInt(authUser.id, 10),
+        employeeId: authUser.id,
         employeeName: authUser.name,
         hotelName: assignedHotel.name,
         position: authUser.position,
@@ -218,7 +208,7 @@ const EmpleadoDashboard: React.FC = () => {
 
   const handleCheckOut = async () => {
     if (!authUser) return;
-    await checkOut(parseInt(authUser.id, 10));
+    await checkOut(authUser.id);
     setSnackbar({ open: true, message: 'Check-out registrado con éxito', severity: 'success' });
     fetchAttendance();
   };

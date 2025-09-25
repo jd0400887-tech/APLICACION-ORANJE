@@ -45,7 +45,7 @@ export const getAttendance = async (): Promise<Attendance[]> => {
   return formattedData;
 };
 
-export const checkIn = async (employeeId: number, hotelId: number, selfieUrl: string): Promise<number | null> => {
+export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: string): Promise<number | null> => {
   // Check for an existing check-in today for this employee that is not checked out
   const today = new Date().toISOString().split('T')[0];
   const { data: existing, error: existingError } = await supabase
@@ -86,7 +86,7 @@ export const checkIn = async (employeeId: number, hotelId: number, selfieUrl: st
   return data.id;
 };
 
-export const checkOut = async (employeeId: number): Promise<void> => {
+export const checkOut = async (employeeId: string): Promise<void> => {
   const today = new Date().toISOString().split('T')[0];
 
   // Find the open check-in for today
