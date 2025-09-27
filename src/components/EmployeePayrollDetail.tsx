@@ -31,6 +31,7 @@ function EmployeePayrollDetail({ employee, hotel, allRecordsForEmployee, onBack,
   const [editingRecord, setEditingRecord] = useState<Attendance | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved'>('pending');
   const [isApproving, setIsApproving] = useState(false);
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 
   const payrollSettings = useMemo(() => {
     const defaults: PayrollSettings = { week_cutoff_day: 'saturday', overtime_enabled: false, overtime_multiplier: 1.5 };
@@ -55,6 +56,36 @@ function EmployeePayrollDetail({ employee, hotel, allRecordsForEmployee, onBack,
     return calculateWeeklyHours(localRecords, payrollSettings, targetDate);
   }, [localRecords, payrollSettings, targetDate]);
 
+  useEffect(() => {
+    const fetchAdjustments = async () => {
+      if (employee) {
+        const employeeAdjustments = await getEmployeeAdjustments(parseInt(employee.id));
+        setAdjustments(employeeAdjustments);
+      }
+    };
+    fetchAdjustments();
+  }, [employee, weekStartDate]);
+
+  const weeklyAdjustments = useMemo(() => {
+    const weekEndDate = new Date(weekStartDate);
+    weekEndDate.setDate(weekEndDate.getDate() + 6);
+
+    const weeklyAdjustments = adjustments.filter(adj => {
+      const adjDate = new Date(adj.date);
+      return adjDate >= weekStartDate && adjDate <= weekEndDate;
+    });
+
+    const totalAdditions = weeklyAdjustments
+      .filter(adj => adj.type === 'addition')
+      .reduce((acc, adj) => acc + adj.amount, 0);
+
+    const totalDeductions = weeklyAdjustments
+      .filter(adj => adj.type === 'deduction')
+      .reduce((acc, adj) => acc + adj.amount, 0);
+
+    return { weeklyAdjustments, totalAdditions, totalDeductions };
+  }, [adjustments, weekStartDate]);
+
   const weeklyPay = useMemo(() => {
     const position = employee.position || '';
     const payRate = hotel.hourly_rates_by_position?.[position] || 0;
@@ -62,12 +93,12 @@ function EmployeePayrollDetail({ employee, hotel, allRecordsForEmployee, onBack,
     const overtimeMultiplier = payrollSettings.overtime_multiplier;
     const regularPay = weeklyData.regular * payRate;
     const overtimePay = weeklyData.overtime * payRate * overtimeMultiplier;
-    const totalPay = regularPay + overtimePay;
+    const totalPay = regularPay + overtimePay + weeklyAdjustments.totalAdditions - weeklyAdjustments.totalDeductions;
     const regularBill = weeklyData.regular * billRate;
     const overtimeBill = weeklyData.overtime * billRate * overtimeMultiplier;
     const totalBill = regularBill + overtimeBill;
     return { totalPay, totalBill };
-  }, [weeklyData, employee.position, hotel, payrollSettings]);
+  }, [weeklyData, employee.position, hotel, payrollSettings, weeklyAdjustments]);
 
   const changeWeek = (direction: 'previous' | 'next') => setTargetDate(current => {
     const newDate = new Date(current);
@@ -168,9 +199,33 @@ function EmployeePayrollDetail({ employee, hotel, allRecordsForEmployee, onBack,
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} md={4}><Card><CardContent><Typography>Horas Regulares</Typography><Typography variant="h5">{weeklyData.regular.toFixed(2)}</Typography></CardContent></Card></Grid>
         <Grid item xs={12} md={4}><Card><CardContent><Typography>Horas Overtime</Typography><Typography variant="h5">{weeklyData.overtime.toFixed(2)}</Typography></CardContent></Card></Grid>
+        <Grid item xs={12} md={4}><Card><CardContent><Typography>Adiciones</Typography><Typography variant="h5">${weeklyAdjustments.totalAdditions.toFixed(2)}</Typography></CardContent></Card></Grid>
+        <Grid item xs={12} md={4}><Card><CardContent><Typography>Deducciones</Typography><Typography variant="h5">-${weeklyAdjustments.totalDeductions.toFixed(2)}</Typography></CardContent></Card></Grid>
         <Grid item xs={12} md={6}><Card><CardContent><Typography>Pago Total</Typography><Typography variant="h5">${weeklyPay.totalPay.toFixed(2)}</Typography></CardContent></Card></Grid>
         <Grid item xs={12} md={6}><Card><CardContent><Typography>Facturación Total</Typography><Typography variant="h5">${weeklyPay.totalBill.toFixed(2)}</Typography></CardContent></Card></Grid>
       </Grid>
+
+      {weeklyAdjustments.weeklyAdjustments.length > 0 && (
+        <>
+          <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Ajustes de la Semana</Typography>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Descripción</TableCell><TableCell align="right">Monto</TableCell></TableRow></TableHead>
+              <TableBody>
+                {weeklyAdjustments.weeklyAdjustments.map(adj => (
+                  <TableRow key={adj.id}>
+                    <TableCell>{new Date(adj.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{adj.description}</TableCell>
+                    <TableCell align="right">{adj.type === 'addition' ? '+' : '-'}$${adj.amount.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+
+      <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Horas Trabajadas</Typography>
 
       <TableContainer component={Paper}>
         <Table>

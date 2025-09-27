@@ -86,47 +86,43 @@ export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: st
   return data.id;
 };
 
-export const checkOut = async (employeeId: string, accumulatedBreakTime: number = 0): Promise<void> => {
+export const checkOut = async (employeeId: string): Promise<{ success: boolean; message: string }> => {
   const today = new Date().toISOString().split('T')[0];
 
-  // Find the open check-in for today, and also get the check_in time
-  const { data: entry, error: findError } = await supabase
+  // Find open check-ins for today
+  const { data: entries, error: findError } = await supabase
     .from('attendance')
-    .select('id, check_in') // Select check_in time as well
+    .select('id, check_in')
     .eq('employee_id', employeeId)
     .gte('check_in', `${today}T00:00:00Z`)
     .lte('check_in', `${today}T23:59:59Z`)
-    .is('check_out', null)
-    .single();
+    .is('check_out', null);
 
-  if (findError || !entry) {
-    console.error('Could not find an open check-in to check out from.', findError);
-    return;
+  if (findError) {
+    console.error('Error finding open check-in:', findError);
+    return { success: false, message: 'Error al buscar el check-in.' };
   }
 
-  const checkOutTime = new Date();
-  const checkInTime = new Date(entry.check_in);
+  if (!entries || entries.length === 0) {
+    console.error('Could not find an open check-in to check out from.');
+    return { success: false, message: 'No se encontró un check-in abierto para hoy.' };
+  }
 
-  // Calculate raw work duration
-  const rawWorkDurationMs = checkOutTime.getTime() - checkInTime.getTime();
+  // In case of multiple open check-ins, use the most recent one
+  const entry = entries.sort((a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime())[0];
 
-  // Calculate net work duration by subtracting accumulated break time
-  const netWorkDurationMs = rawWorkDurationMs - accumulatedBreakTime;
-  const netWorkHours = netWorkDurationMs / 3600000; // Convert milliseconds to hours
-
-  // Update the entry with the check-out time, net work hours, and total break time
+  // Update the entry with the check-out time
   const { error: updateError } = await supabase
     .from('attendance')
-    .update({
-      check_out: checkOutTime.toISOString(),
-      work_hours: netWorkHours,
-      total_break_time: accumulatedBreakTime,
-    })
+    .update({ check_out: new Date().toISOString() })
     .eq('id', entry.id);
 
   if (updateError) {
     console.error('Error during check-out:', updateError);
+    return { success: false, message: 'Error al registrar la salida.' };
   }
+
+  return { success: true, message: 'Check-out exitoso.' };
 };
 
 export const requestCorrection = async (attendanceId: number, message: string): Promise<void> => {

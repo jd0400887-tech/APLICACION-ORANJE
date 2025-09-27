@@ -446,6 +446,71 @@ export const deleteHotel = async (hotelId: number): Promise<void> => {
   }
 };
 
+// --- Employee Adjustments Functions ---
+
+export interface Adjustment {
+  id: number;
+  employee_id: number;
+  date: string;
+  type: 'addition' | 'deduction';
+  amount: number;
+  description: string;
+}
+
+export const getEmployeeAdjustments = async (employeeId: number): Promise<Adjustment[]> => {
+  const { data, error } = await supabase
+    .from('employee_adjustments')
+    .select('*')
+    .eq('employee_id', employeeId);
+
+  if (error) {
+    console.error('Error fetching employee adjustments:', error);
+    return [];
+  }
+  return data as Adjustment[];
+};
+
+export const addEmployeeAdjustment = async (adjustmentData: Omit<Adjustment, 'id'>): Promise<Adjustment | null> => {
+  const { data, error } = await supabase
+    .from('employee_adjustments')
+    .insert([adjustmentData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding employee adjustment:', error);
+    return null;
+  }
+  return data as Adjustment;
+};
+
+export const updateEmployeeAdjustment = async (adjustmentId: number, updates: Partial<Adjustment>): Promise<Adjustment | null> => {
+  const { data, error } = await supabase
+    .from('employee_adjustments')
+    .update(updates)
+    .eq('id', adjustmentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating employee adjustment:', error);
+    return null;
+  }
+  return data as Adjustment;
+};
+
+export const deleteEmployeeAdjustment = async (adjustmentId: number): Promise<void> => {
+  const { error } = await supabase
+    .from('employee_adjustments')
+    .delete()
+    .eq('id', adjustmentId);
+
+  if (error) {
+    console.error('Error deleting employee adjustment:', error);
+  }
+};
+
+
 // --- Storage Functions ---
 
 export const uploadContract = async (file: File): Promise<string | null> => {

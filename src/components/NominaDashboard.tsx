@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Container, Typography, Paper, Box, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Button, Chip, TextField, ToggleButtonGroup, ToggleButton
+  Container, Typography, Paper, Box, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Button, Chip, TextField, ToggleButtonGroup, ToggleButton, Tabs, Tab
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getAttendance, Attendance } from '../data/attendance';
@@ -11,6 +11,7 @@ import { getWeekStartDate } from '../utils/payroll';
 import InvoiceView from './InvoiceView';
 import WeeklyReportDetail from './WeeklyReportDetail';
 import EmployeePayrollHistory from './EmployeePayrollHistory';
+import EmployeeAdjustmentsView from './EmployeeAdjustmentsView';
 import * as XLSX from 'xlsx';
 
 interface ProcessedWeek {
@@ -35,6 +36,9 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedTab, setSelectedTab] = useState(0);
+
+  const clientHotels = useMemo(() => hotels.filter(h => h.status === 'Client'), [hotels]);
 
   const fetchAndProcessData = async () => {
     setLoading(true);
@@ -48,10 +52,10 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
       setAllEmployees(employees);
 
       const newProcessedData: ProcessedData = new Map();
-      hotels.forEach(h => newProcessedData.set(h.id, { hotelName: h.name, weeks: new Map() }));
+      clientHotels.forEach(h => newProcessedData.set(h.id, { hotelName: h.name, weeks: new Map() }));
 
       records.forEach(record => {
-        const hotel = hotels.find(h => h.name === record.hotelName);
+        const hotel = clientHotels.find(h => h.name === record.hotelName);
         if (!hotel) return;
         const payrollSettings = { week_cutoff_day: 'saturday', ...(hotel.payroll_settings as any || {}) };
         const weekStartDate = getWeekStartDate(payrollSettings.week_cutoff_day, new Date(record.date)).toISOString().split('T')[0];
@@ -88,16 +92,15 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
       setProcessedData(newProcessedData);
     } catch (error) {
       console.error("Failed to fetch or process payroll data:", error);
-      // Here you could set an error state to show a message to the user
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    if (hotels.length > 0) {
+    if (clientHotels.length > 0) {
       fetchAndProcessData();
     }
-  }, [hotels]);
+  }, [clientHotels]);
 
   const handleExport = () => {
     const exportData: any[] = [];
@@ -134,7 +137,7 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
   };
 
   const handleWeekClick = (hotelId: number, week: ProcessedWeek) => {
-    const hotel = hotels.find(h => h.id === hotelId);
+    const hotel = clientHotels.find(h => h.id === hotelId);
     if (hotel) {
       setViewingWeekDetailFor({ hotel, week });
     }
@@ -156,6 +159,10 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
     setViewingInvoiceFor(null);
     setViewingWeekDetailFor(null);
     setViewingEmployeeHistory(null);
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
   };
 
   if (loading) {
@@ -184,78 +191,96 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>Nómina Global</Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Supervisa las aprobaciones de nómina de todos los hoteles. Haz clic en una semana para ver el detalle.
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
-        <TextField
-          label="Buscar Hotel"
-          variant="outlined"
-          size="small"
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <ToggleButtonGroup
-          value={filterStatus}
-          exclusive
-          onChange={(e, newValue) => newValue && setFilterStatus(newValue)}
-          aria-label="filter status"
-          size="small"
-        >
-          <ToggleButton value="all" aria-label="all">Todos</ToggleButton>
-          <ToggleButton value="pending" aria-label="pending">Pendientes</ToggleButton>
-          <ToggleButton value="approved" aria-label="approved">Aprobados</ToggleButton>
-        </ToggleButtonGroup>
-        <Button variant="contained" onClick={handleExport}>Exportar</Button>
+      <Typography variant="h4" gutterBottom>Nómina</Typography>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={selectedTab} onChange={handleTabChange} aria-label="payroll tabs">
+          <Tab label="Nómina Global" />
+          <Tab label="Ajustes de Empleados" />
+        </Tabs>
       </Box>
 
-      {Array.from(processedData.entries())
-        .filter(([_, { hotelName }]) => hotelName.toLowerCase().includes(searchQuery.toLowerCase()))
-        .map(([hotelId, { hotelName, weeks }]) => {
-          
-          const filteredWeeks = Array.from(weeks.values()).filter(week => {
-            if (filterStatus === 'all') return true;
-            const hasPending = Array.from(week.employeeApprovals.values()).some(status => status === 'pending');
-            if (filterStatus === 'pending') return hasPending;
-            if (filterStatus === 'approved') return !hasPending;
-            return true;
-          }).sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+      {selectedTab === 0 && (
+        <>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Supervisa las aprobaciones de nómina de todos los hoteles. Haz clic en una semana para ver el detalle.
+          </Typography>
 
-          if (filteredWeeks.length === 0 && searchQuery) return null;
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
+            <TextField
+              label="Buscar Hotel"
+              variant="outlined"
+              size="small"
+              fullWidth
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <ToggleButtonGroup
+              value={filterStatus}
+              exclusive
+              onChange={(e, newValue) => newValue && setFilterStatus(newValue)}
+              aria-label="filter status"
+              size="small"
+            >
+              <ToggleButton value="all" aria-label="all">Todos</ToggleButton>
+              <ToggleButton value="pending" aria-label="pending">Pendientes</ToggleButton>
+              <ToggleButton value="approved" aria-label="approved">Aprobados</ToggleButton>
+            </ToggleButtonGroup>
+            <Button variant="contained" onClick={handleExport}>Exportar</Button>
+          </Box>
 
-          const totalPendingWeeks = Array.from(weeks.values()).filter(week => 
-            Array.from(week.employeeApprovals.values()).some(status => status === 'pending')
-          ).length;
+          {Array.from(processedData.entries())
+            .filter(([hotelId, { hotelName }]) => {
+                const hotel = clientHotels.find(h => h.id === hotelId);
+                return hotel && hotelName.toLowerCase().includes(searchQuery.toLowerCase());
+            })
+            .map(([hotelId, { hotelName, weeks }]) => {
+              
+              const filteredWeeks = Array.from(weeks.values()).filter(week => {
+                if (filterStatus === 'all') return true;
+                const hasPending = Array.from(week.employeeApprovals.values()).some(status => status === 'pending');
+                if (filterStatus === 'pending') return hasPending;
+                if (filterStatus === 'approved') return !hasPending;
+                return true;
+              }).sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
 
-          return (
-            <Accordion key={hotelId} defaultExpanded={totalPendingWeeks > 0}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <Typography variant="h6">{hotelName}</Typography>
-                  {totalPendingWeeks > 0 ? (
-                    <Chip label={`${totalPendingWeeks} semana(s) pendiente(s)`} color="warning" size="small" />
-                  ) : (
-                    <Chip label="Todo aprobado" color="success" size="small" />
-                  )}
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {filteredWeeks.length > 0 ? filteredWeeks.map(week => {
-                  const isWeekFullyApproved = Array.from(week.employeeApprovals.values()).every(status => status === 'approved');
-                  return (
-                    <Paper key={week.weekStartDate} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleWeekClick(hotelId, week)}>
-                      <Typography>Semana del {new Date(week.weekStartDate).toLocaleDateString()}</Typography>
-                      <Chip label={isWeekFullyApproved ? 'Aprobado' : 'Pendiente'} color={isWeekFullyApproved ? 'success' : 'default'} />
-                    </Paper>
-                  );
-                }) : <Typography>No hay semanas que coincidan con el filtro.</Typography>}
-              </AccordionDetails>
-            </Accordion>
-          );
-      })}
+              if (filteredWeeks.length === 0 && searchQuery) return null;
+
+              const totalPendingWeeks = Array.from(weeks.values()).filter(week => 
+                Array.from(week.employeeApprovals.values()).some(status => status === 'pending')
+              ).length;
+
+              return (
+                <Accordion key={hotelId} defaultExpanded={totalPendingWeeks > 0}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <Typography variant="h6">{hotelName}</Typography>
+                      {totalPendingWeeks > 0 ? (
+                        <Chip label={`${totalPendingWeeks} semana(s) pendiente(s)`} color="warning" size="small" />
+                      ) : (
+                        <Chip label="Todo aprobado" color="success" size="small" />
+                      )}
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {filteredWeeks.length > 0 ? filteredWeeks.map(week => {
+                      const isWeekFullyApproved = Array.from(week.employeeApprovals.values()).every(status => status === 'approved');
+                      return (
+                        <Paper key={week.weekStartDate} variant="outlined" sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleWeekClick(hotelId, week)}>
+                          <Typography>Semana del {new Date(week.weekStartDate).toLocaleDateString()}</Typography>
+                          <Chip label={isWeekFullyApproved ? 'Aprobado' : 'Pendiente'} color={isWeekFullyApproved ? 'success' : 'default'} />
+                        </Paper>
+                      );
+                    }) : <Typography>No hay semanas que coincidan con el filtro.</Typography>}
+                  </AccordionDetails>
+                </Accordion>
+              );
+          })}
+        </>
+      )}
+
+      {selectedTab === 1 && (
+        <EmployeeAdjustmentsView />
+      )}
     </Container>
   );
 };

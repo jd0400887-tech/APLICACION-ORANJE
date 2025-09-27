@@ -259,12 +259,14 @@ const EmpleadoDashboard: React.FC = () => {
       setBreakStartTime(null);
     }
 
-    // Pass accumulatedBreakTime to the checkOut function
-    // The checkOut function in ../data/attendance.ts will need to be updated to accept this
-    await checkOut(authUser.id, accumulatedBreakTime); // Assuming checkOut can take accumulatedBreakTime
-    setSnackbar({ open: true, message: 'Check-out registrado con éxito', severity: 'success' });
-    fetchAttendance();
-    setAccumulatedBreakTime(0); // Reset accumulated break time after successful check-out
+    const result = await checkOut(authUser.id);
+    if (result.success) {
+      setSnackbar({ open: true, message: result.message, severity: 'success' });
+      fetchAttendance();
+      setAccumulatedBreakTime(0); // Reset accumulated break time after successful check-out
+    } else {
+      setSnackbar({ open: true, message: result.message, severity: 'error' });
+    }
   };
 
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
