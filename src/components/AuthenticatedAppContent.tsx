@@ -4,7 +4,7 @@ import { useThemeContext } from '../context/ThemeContext';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import {
-  AppBar as MuiAppBar, Toolbar, Typography, Drawer as MuiDrawer, List, ListItem, ListItemIcon, ListItemText, Box, CssBaseline, IconButton, Menu, MenuItem, ListItemButton, Avatar
+  AppBar as MuiAppBar, Toolbar, Typography, Drawer as MuiDrawer, List, ListItem, ListItemIcon, ListItemText, Box, CssBaseline, IconButton, Menu, MenuItem, ListItemButton, Avatar, Tooltip, keyframes
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/DashboardOutlined';
@@ -18,6 +18,7 @@ import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import PeopleIcon from '@mui/icons-material/People';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import SyncIcon from '@mui/icons-material/Sync';
 import HotelManagement from './HotelManagement';
 import HotelDashboard from './HotelDashboard';
 import RecruitmentDashboard from './RecruitmentDashboard';
@@ -35,9 +36,10 @@ import ChangePasswordForm from './ChangePasswordForm';
 import BusinessDeveloper from '../pages/BusinessDeveloper';
 import Coordinator from '../pages/Coordinator';
 import TechnicalSupport from '../pages/TechnicalSupport';
-import AnimatedBackground from './AnimatedBackground'; // Import the new component
+import AnimatedBackground from './AnimatedBackground';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { SyncProvider, useSync } from '../context/SyncContext';
 import { QAProvider } from '../context/QAContext';
 import {
   getHotels, getEmployees, getCandidates, getPersonnelRequests,
@@ -49,6 +51,15 @@ import {
 } from '../data/database';
 import { getPermissions } from '../data/permissions';
 import { getDisplayImage } from '../utils/imageUtils';
+
+const spinning = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
 
 const drawerWidth = 240;
 
@@ -95,8 +106,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' && pr
   marginLeft: `-${drawerWidth}px`,
   height: '100vh',
   overflow: 'auto',
-  position: 'relative', // Keep this for positioning the background
-  backgroundColor: theme.palette.background.default, // Use theme background color
+  position: 'relative',
+  backgroundColor: theme.palette.background.default,
   ...(open && !isEmployeeOnly && {
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.easeOut,
@@ -109,10 +120,11 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' && pr
   }),
 }));
 
-const AuthenticatedAppContent: React.FC = () => {
+const Content: React.FC = () => {
   const { currentUser, logout, refreshCurrentUser } = useAuth();
   const { showNotification } = useNotification();
   const { toggleColorMode, mode } = useThemeContext();
+  const { isSyncing, lastSyncTime } = useSync();
   const theme = useTheme();
 
   const [selectedModule, setSelectedModule] = useState('Dashboard');
@@ -120,10 +132,10 @@ const AuthenticatedAppContent: React.FC = () => {
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(true);
 
-  const [employees, setEmployees] = useState<Employee[]>([]); // Initialize as empty, fetch in useEffect
-  const [personnelRequests, setPersonnelRequests] = useState<PersonnelRequest[]>([]); // Initialize as empty, fetch in useEffect
-  const [candidates, setCandidates] = useState<Candidate[]>([]); // Initialize as empty, fetch in useEffect
-  const [hotels, setHotels] = useState<Hotel[]>([]); // Initialize as empty, fetch in useEffect
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [personnelRequests, setPersonnelRequests] = useState<PersonnelRequest[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -138,7 +150,6 @@ const AuthenticatedAppContent: React.FC = () => {
     };
     fetchData();
   }, []);
-
 
   const [qaInspections, setQaInspections] = useState<QAInspection[]>(getQAInspections());
 
@@ -169,7 +180,6 @@ const AuthenticatedAppContent: React.FC = () => {
     handleUserMenuClose();
   };
 
-  // ... (data handling functions remain the same)
   const handleAddNewRequest = async (newRequestData: { hotel_id: number; position: string; quantity: number; }) => {
     await dbAddPersonnelRequest(newRequestData);
     const updatedRequests = await getPersonnelRequests();
@@ -239,7 +249,7 @@ const AuthenticatedAppContent: React.FC = () => {
     try {
       await dbUpdateEmployee(updatedEmployee);
       showNotification('Empleado actualizado con éxito', 'success');
-      await refreshCurrentUser(); // Refresh the user in the auth context
+      await refreshCurrentUser();
     } catch (error) {
       console.error('Failed to update employee in database:', error);
       showNotification('Error al guardar los cambios. Por favor, inténtalo de nuevo.', 'error');
@@ -303,19 +313,15 @@ const AuthenticatedAppContent: React.FC = () => {
   const menuItems = getMenuItems(currentUser.role);
   const isEmployeeOnly = menuItems.length === 1 && menuItems[0].id === 'Empleado';
 
-  // Nuevo useEffect para manejar el caso isEmployeeOnly
   useEffect(() => {
     if (isEmployeeOnly && selectedModule !== 'Empleado') {
       setSelectedModule('Empleado');
     } else if (!isEmployeeOnly && selectedModule === 'Empleado' && menuItems.length > 0) {
-      // Si ya no es solo empleado y el módulo seleccionado es 'Empleado',
-      // pero hay otros módulos disponibles, redirigir al primer módulo disponible
       setSelectedModule(menuItems[0].id);
     } else if (!isEmployeeOnly && selectedModule === 'Empleado' && menuItems.length === 0) {
-      // Si no hay módulos disponibles (ej. logout o error de permisos)
-      setSelectedModule('Dashboard'); // O alguna otra página por defecto
+      setSelectedModule('Dashboard');
     }
-  }, [isEmployeeOnly, selectedModule, menuItems, currentUser]); // Dependencias
+  }, [isEmployeeOnly, selectedModule, menuItems, currentUser]);
 
   const renderContent = () => {
     switch (selectedModule) {
@@ -380,13 +386,18 @@ const AuthenticatedAppContent: React.FC = () => {
               <MenuIcon />
             </IconButton>
             )}
-            <Box sx={{ flexGrow: 1 }} /> {/* This empty box will push the following items to the right */}
-          <IconButton color="inherit" onClick={toggleColorMode}> {/* ADD THIS BUTTON */}
-            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
-          <IconButton color="inherit" onClick={handleUserMenu}>
-            <Avatar src={getDisplayImage(currentUser.image_url, 'person')} sx={{ width: 32, height: 32 }}/>
-          </IconButton>
+            <Box sx={{ flexGrow: 1 }} />
+            <Tooltip title={isSyncing ? "Sincronizando..." : `Datos actualizados a las ${lastSyncTime?.toLocaleTimeString()}`}>
+              <IconButton color="inherit">
+                <SyncIcon sx={{ animation: isSyncing ? `${spinning} 2s linear infinite` : 'none' }} />
+              </IconButton>
+            </Tooltip>
+            <IconButton color="inherit" onClick={toggleColorMode}>
+              {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+            </IconButton>
+            <IconButton color="inherit" onClick={handleUserMenu}>
+              <Avatar src={getDisplayImage(currentUser.image_url, 'person')} sx={{ width: 32, height: 32 }}/>
+            </IconButton>
             <Menu
               anchorEl={userMenuAnchorEl}
               open={Boolean(userMenuAnchorEl)}
@@ -508,7 +519,15 @@ const AuthenticatedAppContent: React.FC = () => {
           </Box>
         </Main>
       </Box>
-    );
+  );
+};
+
+const AuthenticatedAppContent: React.FC = () => {
+  return (
+    <SyncProvider>
+      <Content />
+    </SyncProvider>
+  );
 };
 
 export default AuthenticatedAppContent;

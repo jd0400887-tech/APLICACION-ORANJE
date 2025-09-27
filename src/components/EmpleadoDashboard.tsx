@@ -18,12 +18,50 @@ import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import PowerOffIcon from '@mui/icons-material/PowerOff';
 import { useAuth } from '../context/AuthContext';
+import { useSync } from '../context/SyncContext';
 import { getAttendance, checkIn, checkOut, Attendance, requestCorrection, uploadSelfie } from '../data/attendance';
 import { getHotels, Hotel, uploadProfilePicture, updateEmployee } from '../data/database';
 import { keyframes } from '@mui/system';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SelfieCamera from './SelfieCamera';
+import LocationMap from './LocationMap';
+
+const StatusCard = ({ status }: { status: 'checked-in' | 'on-break' | 'checked-out' }) => {
+  const theme = useTheme();
+  const statusConfig = {
+    'checked-in': {
+      text: 'En Servicio',
+      icon: <CheckCircleOutlineIcon sx={{ fontSize: 40, mb: 1 }} />,
+      color: theme.palette.success.main,
+      bgColor: theme.palette.success.light + '1A',
+    },
+    'on-break': {
+      text: 'En Descanso',
+      icon: <PauseCircleOutlineIcon sx={{ fontSize: 40, mb: 1 }} />,
+      color: theme.palette.warning.main,
+      bgColor: theme.palette.warning.light + '1A',
+    },
+    'checked-out': {
+      text: 'Fuera de Servicio',
+      icon: <PowerOffIcon sx={{ fontSize: 40, mb: 1 }} />,
+      color: theme.palette.grey[600],
+      bgColor: theme.palette.grey[500] + '1A',
+    },
+  };
+
+  const currentStatus = statusConfig[status];
+
+  return (
+    <Paper elevation={1} sx={{ p: 2, mt: 2, borderRadius: '10px', width: '100%', border: `1px solid ${currentStatus.color}`, backgroundColor: currentStatus.bgColor }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: currentStatus.color }}>
+        {currentStatus.icon}
+        <Typography variant="h6" align="center">{currentStatus.text}</Typography>
+      </Box>
+    </Paper>
+  );
+};
 
 // Helper functions
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -93,6 +131,7 @@ const EmpleadoDashboard: React.FC = () => {
   const { currentUser: authUser, refreshCurrentUser } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { setIsSyncing, setLastSyncTime } = useSync();
   
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastCheckInId, setLastCheckInId] = useState<number | null>(null);
@@ -119,7 +158,7 @@ const EmpleadoDashboard: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isBreaking, setIsBreaking] = useState(false);
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
-  const [accumulatedBreakTime, setAccumulatedBreakTime] = useState(0); // in milliseconds
+  const [accumulatedBreakTime, setAccumulatedBreakTime] = useState(0);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
@@ -149,12 +188,29 @@ const EmpleadoDashboard: React.FC = () => {
     setIsCheckOutDisabled(!lastCheckInId || !authUser || !isInRange || isBreaking);
   }, [lastCheckInId, authUser, isInRange, isBreaking]);
 
-  const GEOFENCE_RADIUS = 200;
+  const GEOFENCE_RADIUS = 50;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const fetchAttendance = useCallback(async () => {
+    if (!authUser) return;
+    setIsSyncing(true);
+    try {
+      const allRecords = await getAttendance();
+      const userRecords = allRecords.filter(rec => rec.employeeId.toString() === authUser.id);
+      setAttendanceRecords(userRecords);
+      const lastRecord = userRecords.find(rec => !rec.checkOut);
+      setLastCheckInId(lastRecord ? lastRecord.id : null);
+    } catch (error) {
+      console.error("Failed to fetch attendance:", error);
+    } finally {
+      setIsSyncing(false);
+      setLastSyncTime(new Date());
+    }
+  }, [authUser, setIsSyncing, setLastSyncTime]);
 
   useEffect(() => {
     if(authUser) {
@@ -163,20 +219,8 @@ const EmpleadoDashboard: React.FC = () => {
         setAllHotels(hotelsData);
       };
       fetchHotels();
+      fetchAttendance();
     }
-  }, [authUser]);
-
-  const fetchAttendance = useCallback(async () => {
-    if (!authUser) return;
-    const allRecords = await getAttendance();
-    const userRecords = allRecords.filter(rec => rec.employeeId.toString() === authUser.id);
-    setAttendanceRecords(userRecords);
-    const lastRecord = userRecords.find(rec => !rec.checkOut);
-    setLastCheckInId(lastRecord ? lastRecord.id : null);
-  }, [authUser]);
-
-  useEffect(() => {
-    fetchAttendance();
   }, [authUser, fetchAttendance]);
 
   const assignedHotel = useMemo(() => {
@@ -251,7 +295,6 @@ const EmpleadoDashboard: React.FC = () => {
 
   const handleCheckOut = async () => {
     if (!authUser) return;
-    // Ensure any active break is ended before check-out
     if (isBreaking && breakStartTime) {
       const breakDuration = new Date().getTime() - breakStartTime.getTime();
       setAccumulatedBreakTime(prev => prev + breakDuration);
@@ -263,7 +306,7 @@ const EmpleadoDashboard: React.FC = () => {
     if (result.success) {
       setSnackbar({ open: true, message: result.message, severity: 'success' });
       fetchAttendance();
-      setAccumulatedBreakTime(0); // Reset accumulated break time after successful check-out
+      setAccumulatedBreakTime(0);
     } else {
       setSnackbar({ open: true, message: result.message, severity: 'error' });
     }
@@ -358,219 +401,81 @@ const EmpleadoDashboard: React.FC = () => {
 
       return Object.entries(dailyHours).map(([day, hours]) => ({ day, hours }));
     }, [filteredRecords]);
+    const currentStatus = !lastCheckInId ? 'checked-out' : isBreaking ? 'on-break' : 'checked-in';
+
     switch (selectedTab) {
       case 0: // Home
         return (
           <Fade in={true} timeout={1000}>
-            <Box sx={{
-              width: '100%',
-              flexGrow: 1,
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              backgroundImage: `linear-gradient(to bottom, rgba(255,140,0,0.2), rgba(255,140,0,0.6)), url(https://source.unsplash.com/1600x900/?hotel,modern)`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              color: 'white', // Set default text color to white for this section
-            }}>
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              zIndex: 1,
-              pt: 4,
-            }}>
-              {authUser && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
-                  <Avatar
-                    key={authUser.image_url}
-                    src={authUser.image_url}
-                    sx={{
-                      width: isMobile ? 120 : 180,
-                      height: isMobile ? 120 : 180,
-                      mb: 1,
-                      border: `4px solid ${isInRange ? theme.palette.success.main : theme.palette.error.main}`
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    component="label"
-                    size="small"
-                    startIcon={<EditIcon />}
-                  >
-                    Cambiar Foto
-                    <input hidden accept="image/*" type="file" onChange={handleProfilePictureChange} />
-                  </Button>
-                </Box>
-              )}
-              {assignedHotel && (
-                <Chip
-                  icon={<LocationOnIcon sx={{ color: 'white !important' }} />}
-                  label={assignedHotel.name}
-                  variant="outlined"
-                  sx={{
-                    mt: 1,
-                    fontSize: isMobile ? '0.8rem' : '1rem',
-                    color: 'white', // Text color
-                    borderColor: 'rgba(255,255,255,0.5)', // Subtle white border
-                    backgroundColor: 'rgba(0,0,0,0.2)', // Subtle dark background
-                    '& .MuiChip-label': {
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.7)', // Text shadow for contrast
-                    }
-                  }}
-                />
-              )}
-
-              <Paper elevation={1} sx={{
-                p: 2,
-                mt: 2,
-                borderRadius: '10px',
-                width: '100%', // Changed to 100% for better mobile fit
-                border: '1px solid #e0e0e0',
-                backgroundColor: locationLoading ? theme.palette.info.light + '1A' : (isInRange ? theme.palette.success.light + '1A' : theme.palette.error.light + '1A'), // Subtle background color
-                color: theme.palette.text.primary, // Ensure text is readable
-              }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
-                  {locationLoading && <LocationSearchingIcon color="info" sx={{ fontSize: 40, mb: 1 }} />}
-                  {locationError && <CancelOutlinedIcon color="error" sx={{ fontSize: 40, mb: 1 }} />}
-                  {distance !== null && isInRange && <CheckCircleOutlineIcon color="success" sx={{ fontSize: 40, mb: 1 }} />}
-                  {distance !== null && !isInRange && <CancelOutlinedIcon color="error" sx={{ fontSize: 40, mb: 1 }} />}
-                  <Typography variant="h6" align="center">Estado de Ubicación</Typography>
-                </Box>
-                {locationLoading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={24} sx={{ mr: 1 }} /> Obteniendo ubicación...</Box>}
-                {locationError && <Typography color="error" align="center">{locationError}</Typography>}
-                {distance !== null && (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography>Estás a {distance.toFixed(0)} metros del hotel.</Typography>
-                    <Typography color={isInRange ? 'success.main' : 'error.main'}>
-                      {isInRange ? 'En rango para Check-in/Check-out.' : 'Fuera de rango para Check-in/Check-out.'}
-                    </Typography>
+            <Box sx={{ width: '100%', flexGrow: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundImage: `linear-gradient(to bottom, rgba(255,140,0,0.2), rgba(255,140,0,0.6)), url(https://source.unsplash.com/1600x900/?hotel,modern)`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'white' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1, pt: 4, px: 2 }}>
+                {authUser && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                    <Avatar key={authUser.image_url} src={authUser.image_url} sx={{ width: isMobile ? 120 : 180, height: isMobile ? 120 : 180, mb: 1, border: `4px solid ${isInRange ? theme.palette.success.main : theme.palette.error.main}` }} />
+                    <Button variant="contained" component="label" size="small" startIcon={<EditIcon />}>
+                      Cambiar Foto
+                      <input hidden accept="image/*" type="file" onChange={handleProfilePictureChange} />
+                    </Button>
                   </Box>
                 )}
-              </Paper>
-            </Box>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative', zIndex: 1, pb: 4, mt: 4 }}>
-              <Box sx={
-                {
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)', // Increased opacity, darker background
-                  backdropFilter: 'blur(10px)',
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  mb: 2
-                }
-              }>
-                <Typography variant={isMobile ? 'h5' : 'h4'} sx={
-                  {
-                    fontWeight: 'bold',
-                    fontFamily: 'monospace',
-                    color: 'white',
-                  }
-                }>
-                  {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-                </Typography>
-              </Box>
-
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                  {lastCheckInId ? (
-                  <Fab
-                    color="default"
-                    aria-label="check-out"
-                    onClick={handleCheckOut}
-                    disabled={isCheckOutDisabled}
-                    sx={
-                      {
-                        width: 120,
-                        height: 120,
-                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                        },
-                      }
-                    }
-                  >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <LogoutIcon sx={{ color: 'white' }} />
-                      <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-out</Typography>
+                <StatusCard status={currentStatus} />
+                <Paper elevation={1} sx={{ p: 2, mt: 2, borderRadius: '10px', width: '100%', border: '1px solid #e0e0e0' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
+                    {locationLoading && <LocationSearchingIcon color="info" sx={{ fontSize: 40, mb: 1 }} />}
+                    {locationError && <CancelOutlinedIcon color="error" sx={{ fontSize: 40, mb: 1 }} />}
+                    {distance !== null && isInRange && <CheckCircleOutlineIcon color="success" sx={{ fontSize: 40, mb: 1 }} />}
+                    {distance !== null && !isInRange && <CancelOutlinedIcon color="error" sx={{ fontSize: 40, mb: 1 }} />}
+                    <Typography variant="h6" align="center">Estado de Ubicación</Typography>
+                  </Box>
+                  {locationLoading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={24} sx={{ mr: 1 }} /> Obteniendo ubicación...</Box>}
+                  {locationError && <Typography color="error" align="center">{locationError}</Typography>}
+                  {userLocation && hotelLocation && (
+                    <Box sx={{ textAlign: 'center' }}>
+                      <LocationMap userLocation={[userLocation.latitude, userLocation.longitude]} hotelLocation={[hotelLocation.latitude, hotelLocation.longitude]} geofenceRadius={GEOFENCE_RADIUS} />
+                      <Typography sx={{ mt: 1 }}>Estás a {distance?.toFixed(0)} metros del hotel.</Typography>
+                      <Typography color={isInRange ? 'success.main' : 'error.main'}>
+                        {isInRange ? 'En rango para Check-in/Check-out.' : 'Fuera de rango para Check-in/Check-out.'}
+                      </Typography>
                     </Box>
-                  </Fab>
-                  ) : (
-                  <Fab
-                    color="default"
-                    aria-label="check-in"
-                    onClick={handleCheckIn}
-                    disabled={isCheckInDisabled}
-                    sx={
-                      {
-                        width: 120,
-                        height: 120,
-                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                        },
-                      }
-                    }
-                  >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <LoginIcon sx={{ color: 'white' }} />
-                      <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-in</Typography>
-                    </Box>
-                  </Fab>
                   )}
-
-                  {lastCheckInId && !isBreaking ? (
-                    <Fab
-                      color="default"
-                      aria-label="start-break"
-                      onClick={handleStartBreak}
-                      sx={
-                        {
-                          width: 120,
-                          height: 120,
-                          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          color: 'white',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                          },
-                        }
-                      }
-                    >
+                </Paper>
+                {assignedHotel && (
+                  <Chip icon={<LocationOnIcon sx={{ color: 'white !important' }} />} label={assignedHotel.name} variant="outlined" sx={{ mt: 2, fontSize: isMobile ? '0.8rem' : '1rem', color: 'white', borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(0,0,0,0.2)', '& .MuiChip-label': { textShadow: '1px 1px 2px rgba(0,0,0,0.7)' } }} />
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative', zIndex: 1, pb: 4, mt: 4 }}>
+                <Box sx={{ backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(10px)', padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.2)', mb: 2 }}>
+                  <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 'bold', fontFamily: 'monospace', color: 'white' }}>
+                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={2} sx={{ mb: 2, height: 120 }}>
+                  {currentStatus === 'checked-out' && (
+                    <Fab color="default" aria-label="check-in" onClick={handleCheckIn} disabled={isCheckInDisabled} sx={{ width: 120, height: 120, backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white', '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' } }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <PauseCircleOutlineIcon sx={{ color: 'white' }} />
-                        <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Descanso</Typography>
+                        <LoginIcon sx={{ color: 'white' }} />
+                        <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-in</Typography>
                       </Box>
                     </Fab>
-                  ) : isBreaking && (
-                    <Fab
-                      color="warning"
-                      aria-label="end-break"
-                      onClick={handleEndBreak}
-                      sx={
-                        {
-                          width: 120,
-                          height: 120,
-                          backgroundColor: 'rgba(255, 140, 0, 0.6)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          color: 'white',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 140, 0, 0.8)',
-                          },
-                        }
-                      }
-                    >
+                  )}
+                  {currentStatus === 'checked-in' && (
+                    <>
+                      <Fab color="default" aria-label="check-out" onClick={handleCheckOut} disabled={isCheckOutDisabled} sx={{ width: 120, height: 120, backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white', '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' } }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <LogoutIcon sx={{ color: 'white' }} />
+                          <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Check-out</Typography>
+                        </Box>
+                      </Fab>
+                      <Fab color="default" aria-label="start-break" onClick={handleStartBreak} sx={{ width: 120, height: 120, backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white', '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' } }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <PauseCircleOutlineIcon sx={{ color: 'white' }} />
+                          <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Descanso</Typography>
+                        </Box>
+                      </Fab>
+                    </>
+                  )}
+                  {currentStatus === 'on-break' && (
+                    <Fab color="warning" aria-label="end-break" onClick={handleEndBreak} sx={{ width: 120, height: 120, backgroundColor: 'rgba(255, 140, 0, 0.6)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)', color: 'white', '&:hover': { backgroundColor: 'rgba(255, 140, 0, 0.8)' } }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <PlayCircleOutlineIcon sx={{ color: 'white' }} />
                         <Typography variant="caption" sx={{ color: 'white', textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>Fin Descanso</Typography>
@@ -592,7 +497,6 @@ const EmpleadoDashboard: React.FC = () => {
                   <Typography variant="h6" component="div">Mis Registros</Typography>
                 </Toolbar>
               </AppBar>
-
               <Box sx={{ p: 2 }}>
                 <Paper elevation={1} sx={{ p: 2, mb: 2, border: '1px solid #e0e0e0' }}>
                   <Typography variant="h6" gutterBottom>Horas Trabajadas esta Semana</Typography>
@@ -606,7 +510,6 @@ const EmpleadoDashboard: React.FC = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 </Paper>
-
                 <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
                   <Typography variant="h6">Historial de Registros</Typography>
                   <Box sx={{ display: 'flex', gap: 2 }}>
@@ -614,7 +517,6 @@ const EmpleadoDashboard: React.FC = () => {
                     <TextField type="date" label="Fecha de fin" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} size="small" />
                   </Box>
                 </Box>
-
                 {filteredRecords.map((rec) => (
                   <Card key={rec.id} elevation={1} sx={{ mb: 2, border: '1px solid #e0e0e0' }}>
                     <CardContent>
@@ -666,45 +568,24 @@ const EmpleadoDashboard: React.FC = () => {
   };
 
   return (
-    <Container
-      disableGutters
-      sx={{
-        py: isMobile ? 2 : 3,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        bgcolor: '#f4f6f8'
-      }}
-    >
+    <Container disableGutters sx={{ py: isMobile ? 2 : 3, display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#f4f6f8' }}>
       <AppBar position="static" sx={{ mb: 2 }}>
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             ¡{getGreeting()}, {authUser?.name}!
           </Typography>
-          <IconButton
-            size="large"
-            edge="end"
-            color="inherit"
-            aria-label="menu"
-            onClick={handleMenuOpen}
-          >
+          <IconButton size="large" edge="end" color="inherit" aria-label="menu" onClick={handleMenuOpen}>
             <MenuIcon />
           </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
             <MenuItem onClick={() => handleNavClick(1)}>Mis Registros</MenuItem>
             <MenuItem onClick={() => handleNavClick(2)}>Soporte Técnico</MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
-      
       <Box sx={{ width: '100%', flexGrow: 1, position: 'relative' }}>
         {renderContent()}
       </Box>
-      
       <Dialog open={correctionModalOpen} onClose={handleCloseCorrectionModal}><DialogTitle>Solicitar Corrección</DialogTitle><DialogContent><DialogContentText>Describe el problema con este registro de asistencia. Tu supervisor revisará tu solicitud.</DialogContentText><TextField autoFocus margin="dense" id="correction-message" label="Mensaje" type="text" fullWidth variant="standard" value={correctionMessage} onChange={(e) => setCorrectionMessage(e.target.value)} multiline rows={4} /></DialogContent><DialogActions><Button onClick={handleCloseCorrectionModal}>Cancelar</Button><Button onClick={handleSubmitCorrection}>Enviar Solicitud</Button></DialogActions></Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}><Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
       <SelfieCamera open={isCameraOpen} onClose={useCallback(() => setIsCameraOpen(false), [])} onPictureTaken={handlePictureTaken} />

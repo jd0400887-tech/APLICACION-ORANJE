@@ -12,6 +12,7 @@ import InvoiceView from './InvoiceView';
 import WeeklyReportDetail from './WeeklyReportDetail';
 import EmployeePayrollHistory from './EmployeePayrollHistory';
 import EmployeeAdjustmentsView from './EmployeeAdjustmentsView';
+import { useSync } from '../context/SyncContext';
 import * as XLSX from 'xlsx';
 
 interface ProcessedWeek {
@@ -38,10 +39,13 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedTab, setSelectedTab] = useState(0);
 
+  const { setIsSyncing, setLastSyncTime } = useSync();
+
   const clientHotels = useMemo(() => hotels.filter(h => h.status === 'Client'), [hotels]);
 
   const fetchAndProcessData = async () => {
     setLoading(true);
+    setIsSyncing(true);
     try {
       const [approvals, records, employees] = await Promise.all([
         getAllWeeklyApprovals(),
@@ -92,8 +96,11 @@ const NominaDashboard: React.FC<NominaDashboardProps> = ({ currentUser, hotels }
       setProcessedData(newProcessedData);
     } catch (error) {
       console.error("Failed to fetch or process payroll data:", error);
+    } finally {
+      setLoading(false);
+      setIsSyncing(false);
+      setLastSyncTime(new Date());
     }
-    setLoading(false);
   };
 
   useEffect(() => {
