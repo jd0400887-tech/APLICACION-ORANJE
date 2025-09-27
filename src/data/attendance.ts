@@ -46,8 +46,13 @@ export const getAttendance = async (): Promise<Attendance[]> => {
 };
 
 export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: string): Promise<{ success: boolean; message: string; data: { id: number } | null }> => {
-  // Check for an existing check-in today for this employee that is not checked out
-  const now = new Date();
+  // Get the current time from the database server
+  const { data: nowData, error: nowError } = await supabase.rpc('get_current_timestamp');
+  if (nowError || !nowData) {
+    console.error('Could not get server time:', nowError);
+    return { success: false, message: 'Error al obtener la hora del servidor.', data: null };
+  }
+  const now = new Date(nowData);
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
@@ -90,14 +95,17 @@ export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: st
 };
 
 export const checkOut = async (employeeId: string): Promise<{ success: boolean; message: string }> => {
-  // Get the current date in the client's local timezone
-  const now = new Date();
-  // Set to the beginning of the day in the local timezone
+  // Get the current time from the database server
+  const { data: nowData, error: nowError } = await supabase.rpc('get_current_timestamp');
+  if (nowError || !nowData) {
+    console.error('Could not get server time:', nowError);
+    return { success: false, message: 'Error al obtener la hora del servidor.' };
+  }
+  const now = new Date(nowData);
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  // Set to the end of the day in the local timezone
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  // Find open check-ins for today (local time)
+  // Find open check-ins for today (based on server time)
   const { data: entries, error: findError } = await supabase
     .from('attendance')
     .select('id, check_in')
