@@ -45,25 +45,28 @@ export const getAttendance = async (): Promise<Attendance[]> => {
   return formattedData;
 };
 
-export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: string): Promise<number | null> => {
+export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: string): Promise<{ success: boolean; message: string; data: { id: number } | null }> => {
   // Check for an existing check-in today for this employee that is not checked out
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
   const { data: existing, error: existingError } = await supabase
     .from('attendance')
     .select('id')
     .eq('employee_id', employeeId)
-    .gte('check_in', `${today}T00:00:00Z`)
-    .lte('check_in', `${today}T23:59:59Z`)
+    .gte('check_in', startOfDay.toISOString())
+    .lte('check_in', endOfDay.toISOString())
     .is('check_out', null);
 
   if (existingError) {
     console.error('Error checking for existing check-in:', existingError);
-    return null;
+    return { success: false, message: 'Error al verificar el check-in existente.', data: null };
   }
 
   if (existing && existing.length > 0) {
     console.warn('User has an open check-in for today already.');
-    return null; // Already checked in and not out
+    return { success: false, message: 'Ya tienes un check-in abierto para hoy.', data: null };
   }
 
   const { data, error } = await supabase
@@ -80,22 +83,27 @@ export const checkIn = async (employeeId: string, hotelId: number, selfieUrl: st
 
   if (error) {
     console.error('Error during check-in:', error);
-    return null;
+    return { success: false, message: 'Error al registrar el check-in.', data: null };
   }
 
-  return data.id;
+  return { success: true, message: 'Check-in exitoso.', data };
 };
 
 export const checkOut = async (employeeId: string): Promise<{ success: boolean; message: string }> => {
-  const today = new Date().toISOString().split('T')[0];
+  // Get the current date in the client's local timezone
+  const now = new Date();
+  // Set to the beginning of the day in the local timezone
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  // Set to the end of the day in the local timezone
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  // Find open check-ins for today
+  // Find open check-ins for today (local time)
   const { data: entries, error: findError } = await supabase
     .from('attendance')
     .select('id, check_in')
     .eq('employee_id', employeeId)
-    .gte('check_in', `${today}T00:00:00Z`)
-    .lte('check_in', `${today}T23:59:59Z`)
+    .gte('check_in', startOfDay.toISOString())
+    .lte('check_in', endOfDay.toISOString())
     .is('check_out', null);
 
   if (findError) {

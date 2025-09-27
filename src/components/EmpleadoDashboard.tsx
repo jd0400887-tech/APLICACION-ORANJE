@@ -239,13 +239,13 @@ const EmpleadoDashboard: React.FC = () => {
       setSnackbar({ open: true, message: 'Error al subir la selfie.', severity: 'error' });
       return;
     }
-    const newCheckInId = await checkIn(authUser.id, assignedHotel.id, selfieUrl);
-    if (newCheckInId) {
-      setLastCheckInId(newCheckInId);
-      setSnackbar({ open: true, message: 'Check-in registrado con éxito', severity: 'success' });
+    const result = await checkIn(authUser.id, assignedHotel.id, selfieUrl);
+    if (result.success && result.data) {
+      setLastCheckInId(result.data.id);
+      setSnackbar({ open: true, message: result.message, severity: 'success' });
       fetchAttendance();
     } else {
-      setSnackbar({ open: true, message: 'Ya tienes un check-in abierto hoy.', severity: 'warning' });
+      setSnackbar({ open: true, message: result.message, severity: 'warning' });
     }
   };
 
