@@ -10,6 +10,7 @@ const EmployeeAdjustmentsView: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [newAdjustment, setNewAdjustment] = useState({ type: 'addition', amount: '', description: '' });
+  const [employeeSearch, setEmployeeSearch] = useState('');
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -61,14 +62,24 @@ const EmployeeAdjustmentsView: React.FC = () => {
     return <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Container>;
   }
 
+  const filteredEmployees = employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase()));
+
   return (
     <Container>
       <Typography variant="h4" gutterBottom>Ajustes de Empleados</Typography>
       <Box sx={{ display: 'flex', gap: 4 }}>
-        <Paper sx={{ width: '30%', p: 2 }}>
+        <Paper sx={{ width: '30%', p: 2, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="h6">Empleados</Typography>
-          <List>
-            {employees.map(emp => (
+          <TextField
+            label="Buscar Empleado"
+            variant="outlined"
+            size="small"
+            sx={{ mt: 2, mb: 1 }}
+            value={employeeSearch}
+            onChange={(e) => setEmployeeSearch(e.target.value)}
+          />
+          <List sx={{ overflow: 'auto' }}>
+            {filteredEmployees.map(emp => (
               <ListItem button key={emp.id} onClick={() => handleEmployeeSelect(emp)}>
                 <ListItemText primary={emp.name} secondary={emp.role} />
               </ListItem>

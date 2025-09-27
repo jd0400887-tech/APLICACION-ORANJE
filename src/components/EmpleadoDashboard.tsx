@@ -3,7 +3,7 @@ import {
   Button, Container, Typography, Paper, Snackbar, Alert, Card, CardContent, Box, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Avatar, Stack, IconButton, useTheme,
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress, useMediaQuery, AppBar, Toolbar,
-  Menu, MenuItem, Skeleton, Fade, Fab
+  Menu, MenuItem, Skeleton, Fade, Fab, Collapse
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/LoginOutlined';
 import LogoutIcon from '@mui/icons-material/LogoutOutlined';
@@ -19,14 +19,18 @@ import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import PowerOffIcon from '@mui/icons-material/PowerOff';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
 import { getAttendance, checkIn, checkOut, Attendance, requestCorrection, uploadSelfie } from '../data/attendance';
-import { getHotels, Hotel, uploadProfilePicture, updateEmployee } from '../data/database';
+import { getHotels, Hotel, uploadProfilePicture, updateEmployee, getEmployeeAdjustments, Adjustment } from '../data/database';
 import { keyframes } from '@mui/system';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SelfieCamera from './SelfieCamera';
 import LocationMap from './LocationMap';
+import { generatePayStubPDF } from '../utils/generatePayStubPDF';
+import { calculateWeeklyHours, WeeklyHours, getWeekStartDate } from '../utils/payroll';
 
 const StatusCard = ({ status }: { status: 'checked-in' | 'on-break' | 'checked-out' }) => {
   const theme = useTheme();
@@ -156,9 +160,11 @@ const EmpleadoDashboard: React.FC = () => {
   const [isCheckInDisabled, setIsCheckInDisabled] = useState(true);
   const [isCheckOutDisabled, setIsCheckOutDisabled] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [expandedPayStub, setExpandedPayStub] = useState<string | null>(null);
   const [isBreaking, setIsBreaking] = useState(false);
   const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
   const [accumulatedBreakTime, setAccumulatedBreakTime] = useState(0);
+  const [employeeAdjustments, setEmployeeAdjustments] = useState<Adjustment[]>([]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
@@ -218,8 +224,13 @@ const EmpleadoDashboard: React.FC = () => {
         const hotelsData = await getHotels();
         setAllHotels(hotelsData);
       };
+      const fetchAdjustments = async () => {
+        const adjustmentsData = await getEmployeeAdjustments(authUser.id);
+        setEmployeeAdjustments(adjustmentsData);
+      };
       fetchHotels();
       fetchAttendance();
+      fetchAdjustments();
     }
   }, [authUser, fetchAttendance]);
 
@@ -362,6 +373,68 @@ const EmpleadoDashboard: React.FC = () => {
   };
 
   const filteredRecords = useMemo(() => attendanceRecords.filter(rec => rec.date >= startDate && rec.date <= endDate), [attendanceRecords, startDate, endDate]);
+
+  const payHistoryData = useMemo(() => {
+    if (!authUser || !assignedHotel) return [];
+
+    const payrollSettings = { 
+      week_cutoff_day: 'saturday', 
+      overtime_enabled: false, 
+      overtime_multiplier: 1.5, 
+      ...(assignedHotel.payroll_settings as any || {}) 
+    };
+    const rates = (assignedHotel.payroll_settings as any)?.rates || {};
+    const rateForPosition = rates[authUser.position] || 0;
+
+    // Group records and adjustments by week start date
+    const weeklyDataMap = new Map<string, { records: Attendance[], adjustments: Adjustment[] }>();
+
+    [...attendanceRecords, ...employeeAdjustments].forEach(item => {
+      const weekStartDate = getWeekStartDate(payrollSettings.week_cutoff_day, new Date(item.date)).toISOString().split('T')[0];
+      if (!weeklyDataMap.has(weekStartDate)) {
+        weeklyDataMap.set(weekStartDate, { records: [], adjustments: [] });
+      }
+      if ('workHours' in item) { // It's an Attendance record
+        weeklyDataMap.get(weekStartDate)!.records.push(item as Attendance);
+      } else { // It's an Adjustment
+        weeklyDataMap.get(weekStartDate)!.adjustments.push(item as Adjustment);
+      }
+    });
+
+    // Calculate pay for each week
+    return Array.from(weeklyDataMap.entries()).map(([weekStartDate, { records, adjustments }]) => {
+      const totalHours = records.reduce((acc, rec) => acc + (rec.workHours || 0), 0);
+      
+      let regularHours = totalHours;
+      let overtimeHours = 0;
+      if (payrollSettings.overtime_enabled && totalHours > 40) {
+        regularHours = 40;
+        overtimeHours = totalHours - 40;
+      }
+
+      const regularPay = regularHours * rateForPosition;
+      const overtimePay = overtimeHours * rateForPosition * payrollSettings.overtime_multiplier;
+      const basePay = regularPay + overtimePay;
+
+      const adjustmentsTotal = adjustments.reduce((acc, adj) => {
+        return adj.type === 'addition' ? acc + adj.amount : acc - adj.amount;
+      }, 0);
+
+      const totalPay = basePay + adjustmentsTotal;
+
+      return {
+        weekStartDate,
+        totalHours,
+        regularHours,
+        overtimeHours,
+        basePay,
+        totalPay,
+        adjustments,
+        records,
+      };
+    }).sort((a, b) => b.weekStartDate.localeCompare(a.weekStartDate));
+
+  }, [attendanceRecords, employeeAdjustments, assignedHotel, authUser]);
 
   const { totalHours, daysWorked, averageCheckInTime, averageWorkDuration } = useMemo(() => {
     const records = filteredRecords;
@@ -563,6 +636,111 @@ const EmpleadoDashboard: React.FC = () => {
             </Box>
           </Fade>
         );
+      case 3: // Mis Desprendibles
+        return (
+          <Fade in={true} timeout={1000}>
+            <Box>
+              <AppBar position="static" sx={{ mb: 2 }}>
+                <Toolbar>
+                  <IconButton edge="start" color="inherit" onClick={() => handleNavClick(0)} aria-label="back"><ArrowBackIcon /></IconButton>
+                  <Typography variant="h6" component="div">Mis Desprendibles de Pago</Typography>
+                </Toolbar>
+              </AppBar>
+              <Box sx={{ p: 2 }}>
+                <TableContainer component={Paper}>
+                  <Table aria-label="collapsible table">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell />
+                        <TableCell>Semana</TableCell>
+                        <TableCell align="right">Horas Totales</TableCell>
+                        <TableCell align="right">Pago Neto</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {payHistoryData.map((weekData) => {
+                        const isExpanded = expandedPayStub === weekData.weekStartDate;
+                        return (
+                          <React.Fragment key={weekData.weekStartDate}>
+                            <TableRow sx={{ '& > *': { borderBottom: 'unset' }, cursor: 'pointer' }} onClick={() => setExpandedPayStub(isExpanded ? null : weekData.weekStartDate)}>
+                              <TableCell>
+                                <IconButton aria-label="expand row" size="small">
+                                  {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                                </IconButton>
+                              </TableCell>
+                              <TableCell component="th" scope="row">
+                                {new Date(weekData.weekStartDate).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell align="right">{weekData.totalHours.toFixed(2)}</TableCell>
+                              <TableCell align="right">{weekData.totalPay.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
+                                <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                  <Box sx={{ margin: 1, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Typography variant="h6" gutterBottom component="div">
+                                        Desglose del Pago
+                                      </Typography>
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!authUser || !assignedHotel) return;
+                                          const payStubData = {
+                                            employee: { id: authUser.id, name: authUser.name, position: authUser.position },
+                                            weekStartDate: weekData.weekStartDate,
+                                            ...weekData
+                                          };
+                                          generatePayStubPDF(payStubData, assignedHotel, weekData.weekStartDate);
+                                        }}
+                                      >
+                                        Descargar PDF
+                                      </Button>
+                                    </Box>
+                                    <Table size="small" aria-label="details">
+                                      <TableBody>
+                                        <TableRow>
+                                          <TableCell>Pago Base (Horas)</TableCell>
+                                          <TableCell align="right">{weekData.basePay.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
+                                          <TableCell>({weekData.regularHours.toFixed(2)}h Reg. + {weekData.overtimeHours.toFixed(2)}h OT)</TableCell>
+                                        </TableRow>
+                                        {weekData.adjustments.length > 0 && (
+                                          <TableRow>
+                                            <TableCell colSpan={3} style={{ fontWeight: 'bold', borderBottom: 'none', paddingTop: '16px' }}>Ajustes</TableCell>
+                                          </TableRow>
+                                        )}
+                                        {weekData.adjustments.map((adj) => (
+                                          <TableRow key={adj.id}>
+                                            <TableCell style={{ paddingLeft: '32px' }}>{adj.description}</TableCell>
+                                            <TableCell align="right" style={{ color: adj.type === 'addition' ? 'green' : 'red' }}>
+                                              {`${adj.type === 'addition' ? '+' : '-'}${adj.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`}
+                                            </TableCell>
+                                            <TableCell>{new Date(adj.date).toLocaleDateString()}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                        <TableRow>
+                                          <TableCell style={{ fontWeight: 'bold', borderTop: '2px solid black' }}>Pago Neto</TableCell>
+                                          <TableCell align="right" style={{ fontWeight: 'bold', borderTop: '2px solid black' }}>{weekData.totalPay.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
+                                          <TableCell style={{ borderTop: '2px solid black' }}></TableCell>
+                                        </TableRow>
+                                      </TableBody>
+                                    </Table>
+                                  </Box>
+                                </Collapse>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
+          </Fade>
+        );
       default: return null;
     }
   };
@@ -579,6 +757,7 @@ const EmpleadoDashboard: React.FC = () => {
           </IconButton>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
             <MenuItem onClick={() => handleNavClick(1)}>Mis Registros</MenuItem>
+            <MenuItem onClick={() => handleNavClick(3)}>Mis Desprendibles</MenuItem>
             <MenuItem onClick={() => handleNavClick(2)}>Soporte Técnico</MenuItem>
           </Menu>
         </Toolbar>

@@ -6,44 +6,72 @@ import {
 } from '@mui/material';
 import jsPDF from 'jspdf';
 import * as jspdfAutotable from 'jspdf-autotable';
-import { Hotel, Employee } from '../data/database';
+import { Hotel, Employee, Adjustment } from '../data/database';
 import { Attendance } from '../data/attendance';
 import { PayrollSettings } from './PayrollSettingsDialog';
+import { generateInvoicePDF } from '../utils/generateInvoicePDF';
 
 interface InvoiceViewProps {
   hotel: Hotel;
   records: Attendance[];
   employees: Employee[];
+  allAdjustments: Adjustment[];
   onBack: () => void;
 }
 
-const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, onBack }) => {
+const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, allAdjustments, onBack }) => {
 
   const invoiceData = useMemo(() => {
-    const employeeHoursMap: Map<string, { totalHours: number, employee: Employee | undefined }> = new Map();
+    const employeeMap: Map<string, { 
+        totalHours: number, 
+        employee: Employee | undefined,
+        adjustments: Adjustment[]
+    }> = new Map();
 
+    // Initialize map with all employees from records
     records.forEach(record => {
-      if (record.workHours) {
-        const entry = employeeHoursMap.get(record.employeeName) || { totalHours: 0, employee: employees.find(e => e.name === record.employeeName) };
-        entry.totalHours += record.workHours;
-        employeeHoursMap.set(record.employeeName, entry);
-      }
+        if (!employeeMap.has(record.employeeName)) {
+            employeeMap.set(record.employeeName, {
+                totalHours: 0,
+                employee: employees.find(e => e.name === record.employeeName),
+                adjustments: []
+            });
+        }
+        if(record.workHours) {
+            const entry = employeeMap.get(record.employeeName)!;
+            entry.totalHours += record.workHours;
+        }
+    });
+
+    // Find and assign adjustments for the week
+    const weekStart = records.length > 0 ? new Date(records[0].date) : new Date();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    allAdjustments.forEach(adj => {
+        const employee = employees.find(e => e.id === adj.employee_id.toString());
+        if (employee && employeeMap.has(employee.name)) {
+            const adjDate = new Date(adj.date);
+            if (adjDate >= weekStart && adjDate <= weekEnd) {
+                employeeMap.get(employee.name)!.adjustments.push(adj);
+            }
+        }
     });
 
     const payrollSettings: PayrollSettings = { 
       week_cutoff_day: 'saturday', 
       overtime_enabled: false, 
       overtime_multiplier: 1.5, 
-      ...(hotel.payroll_settings as PayrollSettings || {}) 
+      ...(hotel.payroll_settings as any || {}) 
     };
 
     let totalCompanyCharge = 0;
     let grandTotalEmployeePay = 0;
 
-    const invoiceDetails = Array.from(employeeHoursMap.entries()).map(([employeeName, { totalHours, employee }]) => {
+    const invoiceDetails = Array.from(employeeMap.entries()).map(([employeeName, { totalHours, employee, adjustments }]) => {
       const position = employee?.position || '';
-      const payRate = hotel.hourly_rates_by_position?.[position] || 0;
-      const billRate = hotel.billing_rates_by_position?.[position] || 0;
+      const payRate = (hotel as any).hourly_rates_by_position?.[position] || 0;
+      const billRate = (hotel as any).billing_rates_by_position?.[position] || 0;
 
       let regularHours = totalHours;
       let overtimeHours = 0;
@@ -53,9 +81,16 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
         overtimeHours = totalHours - 40;
       }
 
-      const totalEmployeePay = (regularHours * payRate) + (overtimeHours * payRate * payrollSettings.overtime_multiplier);
-      const totalChargeToHotel = (regularHours * billRate) + (overtimeHours * billRate * payrollSettings.overtime_multiplier);
+      const employeePayForHours = (regularHours * payRate) + (overtimeHours * payRate * payrollSettings.overtime_multiplier);
+      const chargeToHotelForHours = (regularHours * billRate) + (overtimeHours * billRate * payrollSettings.overtime_multiplier);
       
+      const employeeAdjustmentsTotal = adjustments.reduce((acc, adj) => adj.type === 'addition' ? acc + adj.amount : acc - adj.amount, 0);
+      // Assumption: Adjustments are billed 1-to-1 to the hotel.
+      const chargeToHotelForAdjustments = adjustments.reduce((acc, adj) => acc + adj.amount, 0);
+
+      const totalEmployeePay = employeePayForHours + employeeAdjustmentsTotal;
+      const totalChargeToHotel = chargeToHotelForHours + chargeToHotelForAdjustments;
+
       totalCompanyCharge += totalChargeToHotel;
       grandTotalEmployeePay += totalEmployeePay;
 
@@ -67,51 +102,22 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ hotel, records, employees, on
         overtimeHours: overtimeHours.toFixed(2),
         totalEmployeePay: totalEmployeePay.toFixed(2),
         totalChargeToHotel: totalChargeToHotel.toFixed(2),
+        adjustments, // Pass adjustments for potential UI display
       };
     });
 
     return { invoiceDetails, grandTotalEmployeePay: grandTotalEmployeePay.toFixed(2), totalCompanyCharge: totalCompanyCharge.toFixed(2) };
-  }, [records, employees, hotel]);
-
-  const invoiceRef = useRef<HTMLDivElement>(null);
+  }, [records, employees, hotel, allAdjustments]);
 
   const handleDownloadPdf = () => {
-    if (invoiceRef.current) {
-      const button = document.querySelector('#download-pdf-button');
-      if (button) button.style.display = 'none';
-
-      html2canvas(invoiceRef.current, {
-        scale: 2, // Increase scale for better quality
-        useCORS: true, // Enable CORS if images are from external sources
-      }).then(canvas => {
-        if (button) button.style.display = 'block'; // Show button again
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const imgHeight = canvas.height * imgWidth / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-        pdf.save(`factura-${hotel.name}-${new Date(records[0]?.date).toLocaleDateString()}.pdf`);
-      });
-    }
+    const weekStartDate = records.length > 0 ? records[0].date : new Date().toISOString().split('T')[0];
+    generateInvoicePDF(invoiceData, hotel, weekStartDate);
   };
 
   return (
     <Container>
       <Button onClick={onBack} sx={{ mb: 2 }}>Volver al Dashboard de Nómina</Button>
-      <Paper elevation={3} sx={{ p: 2 }} ref={invoiceRef}>
+      <Paper elevation={3} sx={{ p: 2 }}>
         <Typography variant="h4" gutterBottom>Factura para {hotel.name}</Typography>
         <Typography variant="subtitle1" gutterBottom>Semana del {new Date(records[0]?.date).toLocaleDateString() || 'N/A'}</Typography>
         <TableContainer>

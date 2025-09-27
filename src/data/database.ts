@@ -457,7 +457,7 @@ export interface Adjustment {
   description: string;
 }
 
-export const getEmployeeAdjustments = async (employeeId: number): Promise<Adjustment[]> => {
+export const getEmployeeAdjustments = async (employeeId: string): Promise<Adjustment[]> => {
   const { data, error } = await supabase
     .from('employee_adjustments')
     .select('*')
@@ -508,6 +508,18 @@ export const deleteEmployeeAdjustment = async (adjustmentId: number): Promise<vo
   if (error) {
     console.error('Error deleting employee adjustment:', error);
   }
+};
+
+export const getAllAdjustments = async (): Promise<Adjustment[]> => {
+  const { data, error } = await supabase
+    .from('employee_adjustments')
+    .select('*');
+
+  if (error) {
+    console.error('Error fetching all employee adjustments:', error);
+    return [];
+  }
+  return data as Adjustment[];
 };
 
 
