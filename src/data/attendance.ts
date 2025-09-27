@@ -33,7 +33,7 @@ export const getAttendance = async (): Promise<Attendance[]> => {
     employeeName: r.employees.name,
     hotelName: r.hoteles.name,
     position: r.employees.position,
-    date: new Date(r.check_in).toISOString().split('T')[0], // Extract date from check_in
+    date: r.check_in.substring(0, 10), // Directly use the date part of the ISO string (YYYY-MM-DD)
     checkIn: new Date(r.check_in).toLocaleTimeString(),
         checkOut: r.check_out ? new Date(r.check_out).toLocaleTimeString() : null,
     workHours: r.check_out ? (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000 : null,
